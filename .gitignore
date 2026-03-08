@@ -1,3 +1,71 @@
-venv
-__pycache__
+.gitignore
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pkl
+*.egg-info/
+.env/
+.venv/
+venv/
+# Django specific
+/staticfiles/
+media/
+*.db
+local_settings.py
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+# Build / distribution directories
+dist/
+build/
+out/
+tmp/
+.cache/
+# Logs and databases
+*.log
+*.sqlite
+*.db
+# Environment and secrets
 .env
+.env.local
+.env.*
+*.pem
+*.key
+*.crt
+# Test and coverage outputs
+coverage/
+.nyc_output/
+test-results/
+# Compiled code
+*.class
+*.o
+*.obj
+*.exe
+*.dll
+*.so# Lock files (optional depending on workflow)
+package-lock.json
+yarn.lock
+poetry.lock
+
+# docker
+.dockerignore
+
+# personal
+note.txt
+env.md
