@@ -138,30 +138,31 @@ class UserSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
-    role = RoleSerializer(read_only=True)
+    role = serializers.SerializerMethodField()
 
     password = serializers.CharField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = User
         fields = [
-            'id', 'first_name', 'last_name', 'email', 'phone', 'username',
+            'id', 'first_name', 'last_name', 'email', 'phone',
             'role', 'role_id', 'photo',
             'is_active', 'is_staff', 'created_at', 'updated_at', 'password'
         ]
 
-    def get_job_position(self, obj):
+    def get_role(self, obj):
         return {
-            'id': obj.id,
-            'name': obj.name
+            "role_id": obj.role.id,
+            "role_name": obj.role.role_name,
+            "color": obj.role.color
         }
+        
 
     def create(self, validated_data):
         password = validated_data.pop('password', None)
         role = validated_data.pop('role', None)
         is_staff = validated_data.pop('is_staff', None)
         is_superuser = validated_data.pop('is_superuser', None)
-        validated_data['leave_balance'] = 0
 
         if password is None:
             raise  serializers.ValidationError('Password is required')
@@ -172,11 +173,6 @@ class UserSerializer(serializers.ModelSerializer):
 
             user = User.objects.create_user(role=role, **validated_data)
             user.set_password(password)
-
-            leave_balance = 0
-            if user.job_position is not None and  hasattr(user.job_position.level, 'leave_days'):
-                leave_balance = user.job_position.level.leave_days
-            user.leave_balance = leave_balance
             user.save()
 
             # Send password reset link

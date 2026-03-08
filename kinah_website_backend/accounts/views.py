@@ -58,6 +58,11 @@ class UserViewSet(BaseModelViewSet):
     ordering_fields = ['first_name', 'last_name', 'email', 'created_at', 'updated_at']
     ordering = ['-created_at']
 
+    def get_permissions(self):
+        if self.action == 'activate':
+            return [IsAdminUser()]
+        return super().get_permissions()
+
     def get_queryset(self):
         queryset = super().get_queryset()
         search_query = self.request.query_params.get('search', '').strip()
@@ -87,7 +92,7 @@ class UserViewSet(BaseModelViewSet):
             if value and (param != 'is_active' or value in ['true', 'false']):
                 queryset = filter_func(value)
 
-        return queryset.select_related('role', 'department', 'station', 'employee')
+        return queryset.select_related('role')
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -106,6 +111,20 @@ class UserViewSet(BaseModelViewSet):
     def me(self, request):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=['get']) # , permission_classes=[IsAuthenticated]
+    def activate(self, request, pk=None):
+        user = self.get_object()
+        user.is_active = True
+        user.save()
+        return Response('User activated successfully')
+    
+    @action(detail=True, methods=['get']) # , permission_classes=[IsAuthenticated]
+    def deactivate(self, request, pk=None):
+        user = self.get_object()
+        user.is_active = False
+        user.save()
+        return Response('User deactivated successfully')
 
     @action(detail=True, methods=['post'])
     def set_password(self, request, pk=None):

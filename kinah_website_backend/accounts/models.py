@@ -91,7 +91,7 @@ class UserManager(BaseUserManager):
             'is_editable': False
         })
 
-        user = self.create_user(email, first_name, last_name, phone, password, role=role **extra_fields)
+        user = self.create_user(email, first_name, last_name, phone, password, role=role, **extra_fields)
         
         return user
 
