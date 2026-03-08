@@ -24,11 +24,15 @@ from drf_spectacular.views import (
     SpectacularSwaggerView, 
     SpectacularRedocView
 )
+from django.views.generic import RedirectView
 
 # Base URL for the API
 base_url = 'api/v1'
 
 urlpatterns = [
+    # base API
+    path("", RedirectView.as_view(url=f"/{base_url}/docs/", permanent=False)),
+
     # Admin route
     path(f'{base_url}/admin/', admin.site.urls),
 
