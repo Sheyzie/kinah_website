@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.contrib.contenttypes.models import ContentType
 from phonenumber_field.modelfields import PhoneNumberField
 from django.db import models, transaction
+import uuid
 from django.utils import timezone 
 
 class Role(models.Model):
@@ -115,6 +116,7 @@ class RolePermission(models.Model):
     
    
 class User(AbstractUser):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = None  # Remove the username field
     email = models.CharField(max_length=100, unique=True)
     phone = PhoneNumberField(unique=True)
@@ -139,3 +141,4 @@ class User(AbstractUser):
         ordering = ['-created_at']
         verbose_name = 'User'
         verbose_name_plural = 'Users'
+

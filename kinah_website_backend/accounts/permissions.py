@@ -185,3 +185,5 @@ class CanManageResource(permissions.BasePermission):
         if hasattr(view, 'model'):
             return view.model.__name__
         return None
+    
+    

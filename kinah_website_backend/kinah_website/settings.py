@@ -50,8 +50,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # custome app
+    # custom app
     'accounts',
+    'products',
 
     # JWT Blacklist
     'rest_framework_simplejwt.token_blacklist',

@@ -306,7 +306,7 @@ class UserAPITestCase(APITestCase):
         # fetch users
         url = BASE_URL + f"users/"
         response = self.client.get(url, headers=headers)
-        printResult(response.data)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(len(response.data['results']), 0)
 
