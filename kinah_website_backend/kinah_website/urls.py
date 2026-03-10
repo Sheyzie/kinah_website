@@ -39,6 +39,7 @@ urlpatterns = [
     # Include app-specific routes
     path(f'{base_url}/', include('accounts.urls')),
     path(f'{base_url}/products/', include('products.urls')),
+    path(f'{base_url}/', include('finance.urls')),
 
     # Schema and API Documentation
     path(f'{base_url}/schema/', SpectacularAPIView.as_view(), name='schema'),

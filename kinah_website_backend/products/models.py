@@ -28,8 +28,8 @@ class ProductsType(models.Model):
 
 class Product(models.Model):
     DISCOUNT_TYPE_CHOICE = (
-        ('percent', 'Percent'),
-        ('amount', 'Amount'),
+        ('percent', 'Percentage'),
+        ('fixed', 'Fixed Amount'),
     )
 
     PACKAGE_TYPE_CHOICE = (
@@ -42,10 +42,10 @@ class Product(models.Model):
     category = models.ForeignKey(ProductsCategory, on_delete=models.CASCADE, related_name='product_category')
     type = models.ForeignKey(ProductsType, on_delete=models.CASCADE, related_name='product_type')
     package_type = models.CharField(max_length=10, choices=PACKAGE_TYPE_CHOICE)
-    price = models.DecimalField(max_digits=8, decimal_places=2, default=0)
-    old_price = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    old_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICE, null=True, blank=True)
-    discount_value = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency = models.CharField(max_length=3, default='NGN')
     description = models.TextField(null=True, blank=True)
     quantity = models.PositiveIntegerField(default=0)

@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     # custom app
     'accounts',
     'products',
+    'finance',
 
     # JWT Blacklist
     'rest_framework_simplejwt.token_blacklist',
