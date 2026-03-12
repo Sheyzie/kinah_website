@@ -1,10 +1,17 @@
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django.shortcuts import get_object_or_404
+from typing import Any
 
-from .models import Address, Order, Coupon, Payment
+from .tasks import process_webhook_event
+from .payment_service import PaystackInit
+from .models import (
+    Address, Order, 
+    Coupon, Payment, WebhookEvent
+)
 from .serializers import (
     AddressSerializer,
     OrderListSerializer,
@@ -16,6 +23,8 @@ from .serializers import (
     OrderStatusUpdateSerializer
 )
 
+import logging
+logger = logging.getLogger(__name__)
 
 class BaseAPIView(viewsets.ModelViewSet):
     """
@@ -135,7 +144,7 @@ class OrderViewSet(BaseAPIView):
 
         return OrderDetailSerializer
     
-    @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=["put"], permission_classes=[IsAdminUser])
     def update_status(self, request, pk=None):
         order = self.get_object()
 
@@ -186,7 +195,12 @@ class CouponViewSet(BaseAPIView):
 
 class PaymentViewSet(BaseAPIView):
     serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        return super().get_permissions()
 
     def get_queryset(self):
         user = self.request.user
@@ -196,8 +210,82 @@ class PaymentViewSet(BaseAPIView):
 
         return Payment.objects.filter(order__user=user)
     
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        email = None
+        amount = request.data.get('amount', None)
+        order_id = request.data.get('order_id', None)
+
+        if not user.is_authenticated:
+            email = request.data.get('email', None)
+        else:
+            email = user.email
+
+        if not email or amount is None:
+            return self.failure(
+                message=f"Email and Amount is required for this action",
+                code=400
+            )
+        
+        if not order_id:
+            return self.failure(
+                message=f"Order ID is required for this action",
+                code=400
+            )
+        
+        if int(amount) < 50:
+            return self.failure(
+                message=f"Amount cannot be less than NGN 50",
+                code=400
+            )
+        
+        try:
+
+            order = Order.objects.get(id=order_id)
+
+            paystack = PaystackInit()
+            success, message, data = paystack.initialize(email, amount, str(order.id))
+
+            if not success:
+                return self.failure(
+                    message=message,
+                    code=400
+                )
+            
+            return self.success(
+                message=message,
+                data=data,
+                code=201
+            )
+        except Order.DoesNotExist:
+            return self.failure(
+                message="Order not found",
+                code=400
+            )
+
+    def list(self, request, *args, **kwargs):
+        user = request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
+            return super().list(request, *args, **kwargs)
+        
+        return self.failure(
+            message=f"You are not authorised to carry out this action",
+            code=403
+        )
+        
+    def retrieve(self, request, *args, **kwargs):
+        user = request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
+            return super().retrieve(request, *args, **kwargs)
+        
+        return self.failure(
+            message=f"You are not authorised to carry out this action",
+            code=403
+        )
+    
     def update(self, request, *args, **kwargs):
-        instance = self.get_object()
         user = request.user
         has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
         if has_access:
@@ -207,5 +295,61 @@ class PaymentViewSet(BaseAPIView):
             message=f"You are not authorised to carry out this action",
             code=403
         )
+   
+    def destroy(self, request, *args, **kwargs):
+        user = request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
+            return super().destroy(request, *args, **kwargs)
+        
+        return self.failure(
+            message=f"You are not authorised to carry out this action",
+            code=403
+        )
+    
 
+class PaystackWebhook(APIView):
+    """
+    Webhook for paystack payment
+    """
+
+    def success(self, data=None, message="Success", code=status.HTTP_200_OK):
+        return Response({
+            "status": "success",
+            "message": message,
+            "data": data
+        }, status=code)
+
+    def failure(self, errors=None, message="Failed", code=status.HTTP_400_BAD_REQUEST):
+        return Response({
+            "status": "failure",
+            "message": message,
+            "errors": errors
+        }, status=code)
+    
+    def post(self, request):
+        logger.info("Processing paystack webhook")
+
+        paystack = PaystackInit()
+
+        # if not paystack.verify_signature(request) and not paystack.is_paystack_valid_ip(request):
+        #     return self.failure(
+        #         message='Unauthorised access',
+        #         code=403
+        #     )
+        payload = request.data
+        event = payload.get("event")
+
+        webhook = WebhookEvent.objects.create(
+            event_type=event,
+            payload=request.data
+        )
+
+        result = process_webhook_event.delay(webhook.id)
+
+        return self.success()
+
+        
+
+    
     

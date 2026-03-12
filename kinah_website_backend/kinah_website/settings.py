@@ -37,6 +37,9 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '0.0.0.0',
+    "http://127.0.0.1:4040",
+    "https://manually-indictable-angelika.ngrok-free.dev",
+    "http://manually-indictable-angelika.ngrok-free.dev",
 ]
 
 
@@ -128,7 +131,7 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
-        'KEY_PREFIX': 'mzansi',
+        'KEY_PREFIX': 'kinah',
         'TIMEOUT': 300,  # 5 minutes default
     }
 }
@@ -234,8 +237,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://app.mzansilogistics.africa",
-    "http://app.mzansilogistics.africa",
+    "http://127.0.0.1:4040",
+    "https://manually-indictable-angelika.ngrok-free.dev",
+    "http://manually-indictable-angelika.ngrok-free.dev",
 ]
 
 
@@ -251,8 +255,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://app.mzansilogistics.africa",
-    "http://app.mzansilogistics.africa",
+    "http://127.0.0.1:4040",
+    "https://manually-indictable-angelika.ngrok-free.dev",
+    "http://manually-indictable-angelika.ngrok-free.dev",
 ]
 
 # Security Setup
@@ -368,3 +373,11 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_RESULT_EXPIRES = 3600  # 1 hour
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+
+# Paystack Settings
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', None)
+PAYSTACK_WEBHOOK_IPS = [
+    "52.31.139.75",
+    "52.49.173.169",
+    "52.214.14.220"
+]

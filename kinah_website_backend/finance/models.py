@@ -337,4 +337,13 @@ class Payment(models.Model):
             self.order.save(update_fields=["payment_status"])
 
 
+class WebhookEvent(models.Model):
+
+    event_type = models.CharField(max_length=100)
+
+    payload = models.JSONField()
+
+    processed = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
 

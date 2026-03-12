@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from products.models import Product, ProductsCategory, ProductsType
-from .models import Address, Order, OrderStatusHistory, Payment, Coupon
+from .models import Address, Order, OrderStatusHistory, Payment, Coupon, OrderItem
 import json
 from decimal import Decimal
 from datetime import datetime
@@ -159,6 +159,8 @@ class EcommerceAPITestCase(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Order.objects.count(), 1)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.quantity, 3)
 
     def test_list_orders(self):
         Order.objects.create(
@@ -263,29 +265,31 @@ class EcommerceAPITestCase(APITestCase):
             user=admin_user,
             payment_method="paystack",
             order_number="ORD-001",
-            status='pending'
+            status='processing'
         )
+
+        item = OrderItem.objects.create(
+            product=self.product,
+            order=order,
+            quantity=2,
+            unit_price=100.00
+        )
+
         url = reverse('order-detail', kwargs={'pk': order.id})
         url = url + 'update_status/'
-
         data = {
             "payment_method": "credit_card",
-            'status': 'processing',
-            "items": [
-                {
-                    "product": self.product.id,
-                    "quantity": 2,
-                    "unit_price": "100.00"
-                }
-            ]
+            'status': 'cancelled',
         }
 
-        response = self.client.post(url, data, format='json')
-
+        response = self.client.put(url, data, format='json')
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
-        self.assertEqual(order.status, 'processing')
+        self.product.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
         self.assertEqual(OrderStatusHistory.objects.count(), 1)
+        self.assertEqual(self.product.quantity, 7)
 
     def test_delete_order(self):
         self.client = APIClient()
@@ -317,7 +321,7 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.first()
 
         data = {
-            "order": order.id,
+            "order_id": order.id,
             "payment_method": "paystack",
             "amount": 100.00,
             "status": "processing"
@@ -325,10 +329,10 @@ class EcommerceAPITestCase(APITestCase):
 
         url = reverse('payment-list')
         response = self.client.post(url, data, format='json')
-        
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Payment.objects.count(), 1)
-        order.refresh_from_db()
+        self.assertIn('access_code', response.data['data'])
+        self.assertIn('reference', response.data['data'])
 
     def test_list_payments(self):
         url = reverse('order-list')
@@ -338,6 +342,17 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(Order.objects.count(), 1)
 
         order = Order.objects.first()
+
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345655'
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=admin_user)
 
         Payment.objects.create(
             order=order,
@@ -360,6 +375,17 @@ class EcommerceAPITestCase(APITestCase):
 
         order = Order.objects.first()
 
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345655'
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=admin_user)
+
         payment = Payment.objects.create(
             order=order,
             payment_method="paystack",
@@ -373,7 +399,7 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('data', response.data)
 
-    def test_unauthorised_update_order(self):
+    def test_unauthorised_update_payment(self):
         url = reverse('order-list')
         data = self.order_data
         response = self.client.post(url, data, format='json')
@@ -404,7 +430,7 @@ class EcommerceAPITestCase(APITestCase):
         payment.refresh_from_db()
         self.assertEqual(payment.payment_method, 'paystack')
 
-    def test_authorised_update_order(self):
+    def test_authorised_update_payment(self):
         admin_user = User.objects.create_superuser(
             email='superUser@example.com', 
             password='password123', 
@@ -451,8 +477,16 @@ class EcommerceAPITestCase(APITestCase):
         self.assertNotEqual(order.payment_status, 'pending')
 
     def test_delete_payment(self):
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345655'
+        )
+
         self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=admin_user)
 
         url = reverse('order-list')
         data = self.order_data
@@ -471,7 +505,7 @@ class EcommerceAPITestCase(APITestCase):
 
         url = reverse('payment-detail', kwargs={'pk': payment.id})
         response = self.client.delete(url)
-        
+
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Payment.objects.count(), 0)
 
@@ -587,7 +621,7 @@ class EcommerceAPITestCase(APITestCase):
         coupon.refresh_from_db()
         self.assertEqual(coupon.code, 'TEST11')
 
-    def test_delete_payment(self):
+    def test_delete_coupon(self):
         admin_user = User.objects.create_superuser(
             email='superUser@example.com', 
             password='password123', 
@@ -633,4 +667,74 @@ class EcommerceAPITestCase(APITestCase):
         self.assertIn('data', response.data)
 
 
+class PaystackWebhookAPITestCase(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        url = reverse('order-list')
 
+        order = Order.objects.create(
+            payment_method="paystack",
+            order_number="ORD-001"
+        )
+
+        # Create category and type
+        category = ProductsCategory.objects.create(name='Male', color='blue')
+        type = ProductsType.objects.create(name='Shirt', color='green')
+
+        product_data = {
+            'name': 'Test Shirt',
+            'category_id': category.id,
+            'type_id': type.id,
+            'package_type': 'single',
+            'price': '2000.00',
+            'discount_type': 'percent',
+            'discount_value': '10',
+            'currency': 'NGN',
+            'description': 'A test shirt',
+            'quantity': 5
+        }
+
+        product = Product.objects.create(**product_data)
+
+        item = OrderItem.objects.create(
+            product=product,
+            order=order,
+            quantity=2,
+            unit_price=100.00
+        )
+
+        self.payload = {
+            "event": "charge.success",
+            "data": {
+                "id": 302961,
+                "domain": "test",
+                "status": "success",
+                "reference": order.id,
+                "amount": 100,
+                "message": None,
+                "gateway_response": "Approved by Financial Institution",
+                "paid_at": "2016-09-30T21:10:19.000Z",
+                "created_at": "2016-09-30T21:09:56.000Z",
+                "channel": "card",
+                "currency": "NGN",
+                "ip_address": "0.0.0.0",
+                "fees": None,
+                "customer": {
+                "id": 68324,
+                "first_name": "BoJack",
+                "last_name": "Horseman",
+                "email": "bojack@horseman.com",
+                "customer_code": "CUS_qo38as2hpsgk2r0",
+                "phone": None,
+                "metadata": None,
+                "risk_action": "default"
+                },
+            }
+        }
+    
+    def test_paystack_webhook(self):
+        url = reverse('paystack-webhook')
+        response = self.client.post(url, self.payload, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # self.assertEqual(Payment.objects.count(), 1)

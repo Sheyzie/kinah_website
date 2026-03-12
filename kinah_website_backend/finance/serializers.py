@@ -275,6 +275,7 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         items_data = validated_data.pop('items')
         user = self.context['request'].user
         validated_data['payment_status'] = 'pending'
+        validated_data['status'] = 'pending'
         
         # Create order
         order = Order.objects.create(
@@ -317,17 +318,17 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         """
         Update order and handle items if provided
         """
-        validated_data.pop('status', None)
+        old_status = instance.status
         items_data = validated_data.pop('items', None)
+        new_status = validated_data.get('status', old_status)
+        validated_data.pop("status", None)
+        validated_data.pop("payment_status", None)
         
         # Update order fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
         # Handle status change
-        old_status = instance.status
-        new_status = validated_data.get('status', old_status)
-        
         instance.save()
         
         # Create status history if status changed
@@ -336,7 +337,7 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
                 order=instance,
                 status=new_status,
                 notes=f"Status changed from {old_status} to {new_status}",
-                created_by=self.context['request'].user
+                created_by=self.context.get("request").user
             )
         
         # Update items if provided
@@ -495,10 +496,6 @@ class PaymentSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
         
 
-    
-    
-
-
 class OrderStatusUpdateSerializer(serializers.Serializer):
     """
     Serializer for updating order status
@@ -512,6 +509,12 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
         """
         old_status = instance.status
         new_status = self.validated_data['status']
+
+        if old_status != new_status and new_status in {"cancelled", "refunded"}:
+            for item in instance.items.select_related("product"):
+                product = item.product
+                product.quantity += item.quantity
+                product.save(update_fields=["quantity"])
         
         if old_status != new_status:
             instance.status = new_status
@@ -532,9 +535,9 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
             elif new_status == 'delivered':
                 instance.delivered_at = timezone.now()
                 instance.save()
-            elif new_status == 'paid':
-                instance.paid_at = timezone.now()
-                instance.payment_status = 'paid'
-                instance.save()
+            # elif new_status == 'paid':
+            #     instance.paid_at = timezone.now()
+            #     instance.payment_status = 'paid'
+            #     instance.save()
         
         return instance
