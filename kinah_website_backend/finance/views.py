@@ -20,7 +20,8 @@ from .serializers import (
     CouponSerializer,
     CouponValidateSerializer,
     PaymentSerializer,
-    OrderStatusUpdateSerializer
+    OrderStatusUpdateSerializer,
+    OrderShipmentSerializer
 )
 
 import logging
@@ -148,6 +149,13 @@ class OrderViewSet(BaseAPIView):
     def update_status(self, request, pk=None):
         order = self.get_object()
 
+        status = request.data.get('status')
+        if status == 'shipped':
+            return self.failure(
+                message='Unauthorised route for shipment',
+                code=400
+            )
+
         serializer = OrderStatusUpdateSerializer(
             data=request.data,
             context={"request": request}
@@ -159,6 +167,36 @@ class OrderViewSet(BaseAPIView):
 
         return self.success(
             message="Order status updated successfully"
+        )
+    
+    @action(detail=True, methods=["put"], permission_classes=[IsAdminUser])
+    def shipments(self, request, pk=None):
+        order = self.get_object()
+        
+        if order.status not in ['confirmed', 'shipped']:
+            return self.failure(
+                message=f'Cannot ship parcel with {order.status}',
+                code=400
+            )
+        
+        dispatch_id = request.data.get('dispatch_id', None)
+        if not dispatch_id:
+            return self.failure(
+                message=f'Dispatch ID is required for this action',
+                code=400
+            )
+
+        serializer = OrderShipmentSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.ship_order(order, dispatch_id)
+
+        return self.success(
+            message="Order dispatched successfully"
         )
     
     def update(self, request, *args, **kwargs):

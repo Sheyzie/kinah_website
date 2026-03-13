@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.utils import timezone
 from django.db import transaction
+from logistics.models import Dispatch
 from .models import (
     Address, Order, OrderItem, OrderStatusHistory, 
-    Coupon, Payment, DISCOUNT_TYPE_CHOICE
+    Coupon, Payment, DISCOUNT_TYPE_CHOICE,
+    OrderDispatchHistory
 )
-from products.models import Product, ProductsCategory
+
 import uuid
 
 
@@ -185,7 +187,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'tax_name', 'tax_type', 'tax_amount', 'discount_type', 'discount_value',
             'subtotal', 'discount', 'total_amount', 'tracking_number',
             'shipping_carrier', 'estimated_delivery', 'customer_note', 'admin_note',
-            'ip_address', 'coupon_code', 'items', 'status_history', 'payments', 'dispatch'
+            'ip_address', 'coupon_code', 'items', 'status_history', 'payments', 'dispatch',
             'created_at', 'updated_at', 'paid_at', 'shipped_at', 'delivered_at'
         ]
         read_only_fields = [
@@ -205,6 +207,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
                     'plate_number': obj.dispatch.vehicle.plate_number
                 },
         }
+
 
 class OrderCreateUpdateSerializer(serializers.ModelSerializer):
     """
@@ -518,12 +521,26 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Order.ORDER_STATUS)
     notes = serializers.CharField(required=False, allow_blank=True)
     
+    @transaction.atomic
     def update_status(self, instance):
         """
         Update order status and create history
         """
         old_status = instance.status
         new_status = self.validated_data['status']
+        
+        ALLOWED_TRANSITIONS = {
+            "pending": {"processing", "cancelled"},
+            "processing": {"confirmed", "cancelled"},
+            "confirmed": {"shipped", "cancelled", "refunded"},
+            "shipped": {"delivered", "cancelled", "refunded"},
+            "delivered": set("refunded")
+        }
+
+        if new_status not in ALLOWED_TRANSITIONS.get(old_status, set()):
+            raise serializers.ValidationError(
+                f"Invalid status transition from '{old_status}' to '{new_status}'"
+            )
 
         if old_status != new_status and new_status in {"cancelled", "refunded"}:
             for item in instance.items.select_related("product"):
@@ -531,28 +548,82 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
                 product.quantity += item.quantity
                 product.save(update_fields=["quantity"])
         
-        if old_status != new_status:
-            instance.status = new_status
-            instance.save()
+        try:
+            if old_status != new_status:
+                instance.status = new_status
+                instance.save()
+                
+                # Create status history
+                OrderStatusHistory.objects.create(
+                    order=instance,
+                    status=new_status,
+                    notes=self.validated_data.get('notes', ''),
+                    created_by=self.context['request'].user
+                )
+                
+                if new_status == 'delivered':
+                    instance.delivered_at = timezone.now()
+                    instance.save()
             
-            # Create status history
-            OrderStatusHistory.objects.create(
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+
+
+class OrderShipmentSerializer(serializers.Serializer):
+    """
+    Serializer for creating order shipments and shipment history
+    """
+    notes = serializers.CharField(required=False, allow_blank=True)
+    # dispatch_id = serializers.PrimaryKeyRelatedField(
+    #     queryset=Dispatch.objects.all(),
+    #     write_only=True, 
+    # )
+    
+    @transaction.atomic
+    def ship_order(self, instance, dispatch_id):
+        """
+        Ship order and create history
+        """
+
+        old_status = instance.status
+        
+        if old_status not in ['confirmed', 'shipped']:
+            raise serializers.ValidationError(
+                f'Cannot ship parcel with {old_status}'
+            )
+        
+        # Update timestamps based on status
+        try:
+            dispatch = Dispatch.objects.get(id=dispatch_id)
+            
+            if old_status == 'confirmed':
+                instance.status = 'shipped'
+                instance.save()
+                
+                # Create status history
+                OrderStatusHistory.objects.create(
+                    order=instance,
+                    status='shipped',
+                    notes=self.validated_data.get('notes', ''),
+                    created_by=self.context['request'].user
+                )
+
+                instance.shipped_at = timezone.now()
+                instance.save()
+
+            instance.dispatch = dispatch
+            instance.save()
+
+            OrderDispatchHistory.objects.create(
                 order=instance,
-                status=new_status,
+                dispatch=dispatch,
                 notes=self.validated_data.get('notes', ''),
                 created_by=self.context['request'].user
             )
-            
-            # Update timestamps based on status
-            if new_status == 'shipped':
-                instance.shipped_at = timezone.now()
-                instance.save()
-            elif new_status == 'delivered':
-                instance.delivered_at = timezone.now()
-                instance.save()
-            # elif new_status == 'paid':
-            #     instance.paid_at = timezone.now()
-            #     instance.payment_status = 'paid'
-            #     instance.save()
-        
-        return instance
+
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(str(e))
+
+

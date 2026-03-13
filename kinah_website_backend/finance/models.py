@@ -235,6 +235,33 @@ class OrderStatusHistory(models.Model):
         return f'{self.order.order_number} - {self.get_status_display()}'
     
 
+class OrderDispatchHistory(models.Model):
+    '''
+    Track order status change
+    '''
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='dispatch_history')
+    dispatch = models.ForeignKey(
+        'logistics.Dispatch',
+        on_delete=models.CASCADE,
+    )
+    notes = models.TextField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Order status histories'
+
+    def __str__(self):
+        return f'{self.order.order_number} - {self.get_status_display()}'
+
+
 class Coupon(models.Model):
     '''
     Discount coupon

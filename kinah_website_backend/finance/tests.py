@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from products.models import Product, ProductsCategory, ProductsType
+from logistics.models import Vehicle, Dispatch
 from .models import Address, Order, OrderStatusHistory, Payment, Coupon, OrderItem
 import json
 from decimal import Decimal
@@ -307,6 +308,84 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Order.objects.count(), 0)
 
+    def test_ship_order(self):
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345699'
+        )
+
+        self.client = APIClient()
+        self.client.force_authenticate(user=admin_user)
+
+        order = Order.objects.create(
+            user=admin_user,
+            payment_method="paystack",
+            order_number="ORD-001",
+            status='confirmed'
+        )
+
+        item = OrderItem.objects.create(
+            product=self.product,
+            order=order,
+            quantity=2,
+            unit_price=100.00
+        )
+
+        # Vehicle data
+        vehicle_data = {
+            'vehicle_type': 'Car',
+            'vehicle_brand': 'Lambo',
+            'plate_number': 'TXT-132-AA',
+            'plate_state': 'Lagos',
+            'plate_country': 'Nigeria',
+            'color': 'red',
+        }
+
+        # Dispatch data
+        dispatch_data = {
+            "driver": {
+                    'first_name': 'Test', 
+                    'last_name': 'Driver', 
+                    'email': 'testdriver@mail.com',
+                    'password': 'testDriverPass',
+                    'phone': '+1234567120'
+                },
+            "company_address": {
+                    'full_name': 'Test Driver', 
+                    'street_address': '123 Main st', 
+                    'apartment_address': 'Block B', 
+                    'city': 'Ikeja', 
+                    'state': 'Lagos',
+                    'postal_code': '100262',
+                    'country': 'Nigeria'
+                },
+            "vehicle": vehicle_data,
+            "company_name": 'Test Driver Corp'
+        }
+
+        address = Address.objects.create(**dispatch_data['company_address'])
+        vehicle = Vehicle.objects.create(**vehicle_data)
+        dispatch = Dispatch.objects.create(
+            driver=self.user, 
+            company_address=address, 
+            company_name='Test Corp',
+            vehicle=vehicle
+        )
+
+        url = reverse('order-detail', kwargs={'pk': order.id})
+        url = url + 'shipments/'
+        data = {
+            "dispatch_id": dispatch.id
+        }
+
+        response = self.client.put(url, data, format='json')
+        printResult(response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch, dispatch)
 
     # ---------------------
     # Payment Tests
