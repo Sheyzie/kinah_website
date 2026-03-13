@@ -5,12 +5,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 @shared_task
-def process_webhook_event(webhook_id):
+def process_webhook_event(webhook_id=None):
     logger.info("Processing paystack webhook event")
 
     if not webhook_id:
         process_failed_webhook()
-        
+
     try:
         webhook = WebhookEvent.objects.get(id=webhook_id)
 

@@ -34,6 +34,7 @@ class Address(models.Model):
         null=True,
         blank=True
     )
+    
     address_type = models.CharField(max_length=10, choices=ADDRESS_TYPE)
     full_name = models.CharField(max_length=100)
     street_address = models.CharField(max_length=255)
@@ -116,6 +117,13 @@ class Order(models.Model):
     tracking_number = models.CharField(max_length=100, unique=True)
     shipping_carrier = models.CharField(max_length=50, null=True, blank=True)
     estimated_delivery = models.DateField(null=True, blank=True)
+    dispatch = models.ForeignKey(
+        'logistics.Dispatch',
+        on_delete=models.SET_NULL,
+        related_name='dispatched_orders',
+        null=True,
+        blank=True
+    )
 
     # additional information
     customer_note = models.TextField(null=True, blank=True)

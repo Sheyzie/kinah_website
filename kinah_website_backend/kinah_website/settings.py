@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'accounts',
     'products',
     'finance',
+    'logistics',
 
     # JWT Blacklist
     'rest_framework_simplejwt.token_blacklist',

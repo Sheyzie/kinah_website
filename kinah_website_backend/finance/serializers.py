@@ -148,6 +148,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     shipping_address = AddressSerializer(read_only=True)
     billing_address = AddressSerializer(read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
+    dispatch = serializers.SerializerMethodField(read_only=True)
     status_history = OrderStatusHistorySerializer(
         many=True, 
         read_only=True,
@@ -184,7 +185,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'tax_name', 'tax_type', 'tax_amount', 'discount_type', 'discount_value',
             'subtotal', 'discount', 'total_amount', 'tracking_number',
             'shipping_carrier', 'estimated_delivery', 'customer_note', 'admin_note',
-            'ip_address', 'coupon_code', 'items', 'status_history', 'payments',
+            'ip_address', 'coupon_code', 'items', 'status_history', 'payments', 'dispatch'
             'created_at', 'updated_at', 'paid_at', 'shipped_at', 'delivered_at'
         ]
         read_only_fields = [
@@ -192,6 +193,18 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'paid_at', 'shipped_at', 'delivered_at'
         ]
 
+    def get_dispatch(self, obj):
+        if not obj.dispatch:
+            return None
+        return {
+            'id': obj.dispatch.id,
+            'driver': obj.dispatch.driver.full_name if obj.dispatch.driver else None,
+            'vehicle': {
+                    'id': obj.dispatch.vehicle.id,
+                    'vehicle_type': obj.dispatch.vehicle.vehicle_type,
+                    'plate_number': obj.dispatch.vehicle.plate_number
+                },
+        }
 
 class OrderCreateUpdateSerializer(serializers.ModelSerializer):
     """
@@ -276,6 +289,7 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['payment_status'] = 'pending'
         validated_data['status'] = 'pending'
+        validated_data.pop('dispatch', None)
         
         # Create order
         order = Order.objects.create(
@@ -323,6 +337,7 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         new_status = validated_data.get('status', old_status)
         validated_data.pop("status", None)
         validated_data.pop("payment_status", None)
+        validated_data.pop('dispatch', None)
         
         # Update order fields
         for attr, value in validated_data.items():
