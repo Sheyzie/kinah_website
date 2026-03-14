@@ -5,30 +5,11 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from products.models import Product, ProductsCategory, ProductsType
 from logistics.models import Vehicle, Dispatch
+from accounts.utils import printInJSON
 from .models import Address, Order, OrderStatusHistory, Payment, Coupon, OrderItem
-import json
-from decimal import Decimal
-from datetime import datetime
-import uuid
 
 
 User = get_user_model()
-
-
-class DecimalDatetimeUUIDEncoder(json.JSONEncoder):
-    '''
-    Class to parse Decimal object
-    '''
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        if isinstance(obj, uuid.UUID) or isinstance(obj, datetime):
-            return str(obj)
-        return super().default(obj)
-
-
-def printResult(data):
-    print(json.dumps(data, indent=3, cls=DecimalDatetimeUUIDEncoder))
 
 
 class EcommerceAPITestCase(APITestCase):
@@ -293,8 +274,16 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(self.product.quantity, 7)
 
     def test_delete_order(self):
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345699'
+        )
+
         self.client = APIClient()
-        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=admin_user)
 
         order = Order.objects.create(
             user=self.user,

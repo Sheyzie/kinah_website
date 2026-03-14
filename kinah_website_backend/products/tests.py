@@ -2,32 +2,15 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from accounts.utils import printInJSON
 from .models import Product, ProductsCategory, ProductsType, Review, ProductImage
 from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image
-import json
-from decimal import Decimal
-import uuid
 
 
 User = get_user_model()
 
-
-class DecimalUUIDEncoder(json.JSONEncoder):
-    '''
-    Class to parse Decimal object
-    '''
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        return super().default(obj)
-
-
-def printResult(data):
-    print(json.dumps(data, indent=3, cls=DecimalUUIDEncoder))
 
 def get_test_image(name='test.jpg'):
     """Generate a simple image for testing"""

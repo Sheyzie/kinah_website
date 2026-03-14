@@ -4,6 +4,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from django.db import models, transaction
 import uuid
 from django.utils import timezone 
+from .permissions import DefaultPermission
 
 class Role(models.Model):
     role_name = models.CharField(max_length=50, unique=True)
@@ -52,6 +53,10 @@ class UserManager(BaseUserManager):
                 'is_active': True,
                 'is_editable': False
             })
+
+            if created:
+                perms = DefaultPermission(role)
+                perms.set_buyer_default_perms()
         
         email = self.normalize_email(email)
         user = self.model(
@@ -95,6 +100,10 @@ class UserManager(BaseUserManager):
             'is_editable': False
         })
 
+        if created:
+            perms = DefaultPermission(role)
+            perms.set_admin_default_perms()
+
         user = self.create_user(email, first_name, last_name, phone, password, role=role, **extra_fields)
         
         return user
@@ -125,6 +134,10 @@ class UserManager(BaseUserManager):
             'is_active': True,
             'is_editable': True
         })
+
+        if created:
+            perms = DefaultPermission(role)
+            perms.set_staff_default_perms()
 
         user = self.create_user(email, first_name, last_name, phone, password, role=role, **extra_fields)
         

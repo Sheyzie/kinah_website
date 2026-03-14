@@ -2,9 +2,14 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from django.shortcuts import get_object_or_404
-from typing import Any
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from accounts.permissions import (
+    IsAdminUser, IsStaffUser, RoleBasedPermission,
+    CanDispatchDriver, CanManageResource,
+    CanCreateAccount, IsDispatcher
+)
 
 
 from .models import Vehicle, Dispatch
@@ -20,6 +25,8 @@ class BaseAPIView(viewsets.ModelViewSet):
     """
     Base view to wrap all responses in a consistent format.
     """
+    filter_backends = [SearchFilter, OrderingFilter]
+    throttle_classes = [UserRateThrottle]
 
     def success(self, data=None, message="Success", code=status.HTTP_200_OK):
         return Response({
@@ -102,36 +109,49 @@ class BaseAPIView(viewsets.ModelViewSet):
 
 class VehicleViewSet(BaseAPIView):
     serializer_class = VehicleSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [RoleBasedPermission]
     queryset = Vehicle.objects.all()
+    search_fields = ['vehicle_type', 'vehicle_brand', 'plate_state']
+    ordering_fields = ['plate_country', 'plate_state', 'created_at', 'updated_at']
+    ordering = ['-created_at']
 
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     if user.is_staff: # TODO: set accurate permission
-    #         return Vehicle.objects.all()
-    #     return Vehicle.objects.filter(dispatcher=user)
+    def get_queryset(self):
+        user = self.request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
+            return Vehicle.objects.all()
+        return Vehicle.objects.filter(dispatcher=user)
 
 
 class DispatchViewSet(BaseAPIView):
     serializer_class = DispatchListDetailSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [RoleBasedPermission]
     queryset = Dispatch.objects.all()
+    search_fields = ['company_name', 'is_active', 'status']
+    ordering_fields = ['is_active', 'status', 'created_at', 'updated_at']
+    ordering = ['-created_at']
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [CanCreateAccount()]
+        return super().get_permissions()
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'patial_update']:
             return DispatchCreateSerializer
         return super().get_serializer_class()
 
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     if user.is_staff: # TODO: set accurate permission
-    #         return Dispatch.objects.all()
-    #     return Dispatch.objects.filter(dispatcher=user)
+    def get_queryset(self):
+        user = self.request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
+            return Dispatch.objects.all().order_by('-created_at')
+        return Dispatch.objects.filter(dispatcher=user).order_by('-created_at')
 
     # def perform_create(self, serializer):
     #     serializer.save(user=self.request.user)
 
-    @action(detail=True, methods=["put"], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=["put"], permission_classes=[IsDispatcher])
     def update_status(self, request, pk=None):
         order = self.get_object()
 

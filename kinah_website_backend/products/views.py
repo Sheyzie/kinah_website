@@ -3,9 +3,10 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from accounts.permissions import (
     IsAdminUser, RoleBasedPermission,
-    CanCreateAccount, CanDispatchDriver,
     CanManageResource
 )
 
@@ -17,6 +18,8 @@ class BaseAPIView(APIView):
     """
     Base view to wrap all responses in a consistent format.
     """
+    filter_backends = [SearchFilter, OrderingFilter]
+    throttle_classes = [UserRateThrottle]
 
     def success(self, data=None, message="Success", code=status.HTTP_200_OK):
         return Response({
@@ -38,10 +41,26 @@ class ProductListCreateView(BaseAPIView):
     GET: List all products
     POST: Create a product with images
     """
+    permission_classes = [RoleBasedPermission]
+    search_fields = ['name', 'type__name', 'category__name']
+    ordering_fields = ['name', 'type__name', 'category__name', 'created_at', 'updated_at']
+    ordering = ['-created_at']
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return super().get_permissions()
 
     def get(self, request):
-        products = Product.objects.all()
-        serializer = ProductSerializer(products, many=True)
+        search_filter = SearchFilter()
+        ordering_filter = OrderingFilter()
+
+        queryset = Product.objects.all()
+
+        queryset = search_filter.filter_queryset(request, queryset, self)
+        queryset = ordering_filter.filter_queryset(request, queryset, self)
+
+        serializer = ProductSerializer(queryset, many=True)
         return self.success(data=serializer.data)
 
     def post(self, request):
@@ -58,6 +77,12 @@ class ProductDetailView(BaseAPIView):
     PUT: Update product
     DELETE: Delete product
     """
+    permission_classes = [RoleBasedPermission]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return super().get_permissions()
 
     def get_object(self, pk):
         try:
@@ -103,17 +128,37 @@ class ReviewListCreateView(BaseAPIView):
     POST: Create a review for a product
     """
     parser_classes = [MultiPartParser, FormParser]
-    filter_backends = [SearchFilter, OrderingFilter]
     permission_classes = [RoleBasedPermission]
+    search_fields = ['product__name', 'product__type__name', 'product__category__name']
+    ordering_fields = ['product__name', 'product__type__name', 'product__category__name', 'created_at', 'updated_at']
+    ordering = ['-created_at']
+
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'POST']:
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def get(self, request, product_id=None):
         """
         If product_id is provided, show reviews by user for that product.
         Otherwise, show all reviews by the user.
         """
-        reviews = Review.objects.filter(user=request.user)
+        search_filter = SearchFilter()
+        ordering_filter = OrderingFilter()
+
+        user = self.request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        
+        queryset = Review.objects.all()
+        if not has_access:
+            queryset = queryset.filter(user=user)
+
+        queryset = search_filter.filter_queryset(request, queryset, self)
+        queryset = ordering_filter.filter_queryset(request, queryset, self)
+
         if product_id:
-            reviews = reviews.filter(product_id=product_id)
+            reviews = queryset.filter(product_id=product_id)
         serializer = ReviewSerializer(reviews, many=True)
         return self.success(data=serializer.data)
 
@@ -136,10 +181,22 @@ class ProductCategoryListCreateView(BaseAPIView):
     GET: List all products categories
     POST: Create a product categories
     """
+    permission_classes = [RoleBasedPermission]
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at', 'updated_at']
+    ordering = ['-created_at']
+
 
     def get(self, request):
-        products = ProductsCategory.objects.all()
-        serializer = ProductsCategorySerializer(products, many=True)
+        search_filter = SearchFilter()
+        ordering_filter = OrderingFilter()
+
+        queryset = ProductsCategory.objects.all()
+
+        queryset = search_filter.filter_queryset(request, queryset, self)
+        queryset = ordering_filter.filter_queryset(request, queryset, self)
+
+        serializer = ProductsCategorySerializer(queryset, many=True)
         return self.success(data=serializer.data)
 
     def post(self, request):
@@ -155,6 +212,7 @@ class ProductCategoryDetailView(BaseAPIView):
     PUT: Update product category
     DELETE: Delete product category
     """
+    permission_classes = [RoleBasedPermission]
 
     def get_object(self, pk):
         try:
@@ -192,10 +250,21 @@ class ProductTypeListCreateView(BaseAPIView):
     GET: List all products categories
     POST: Create a product categories
     """
+    permission_classes = [RoleBasedPermission]
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at', 'updated_at']
+    ordering = ['-created_at']
 
     def get(self, request):
-        products = ProductsType.objects.all()
-        serializer = ProductsTypeSerializer(products, many=True)
+        search_filter = SearchFilter()
+        ordering_filter = OrderingFilter()
+
+        queryset = ProductsType.objects.all()
+
+        queryset = search_filter.filter_queryset(request, queryset, self)
+        queryset = ordering_filter.filter_queryset(request, queryset, self)
+
+        serializer = ProductsTypeSerializer(queryset, many=True)
         return self.success(data=serializer.data)
 
     def post(self, request):
@@ -211,6 +280,7 @@ class ProductTypeDetailView(BaseAPIView):
     PUT: Update product type
     DELETE: Delete product type
     """
+    permission_classes = [RoleBasedPermission]
 
     def get_object(self, pk):
         try:

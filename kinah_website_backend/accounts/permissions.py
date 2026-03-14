@@ -1,5 +1,6 @@
 from rest_framework import permissions
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 
 
 class IsAdminUser(permissions.BasePermission):
@@ -19,6 +20,31 @@ class IsAdminUser(permissions.BasePermission):
         # Check if user has admin role
         if hasattr(request.user, 'role') and request.user.role:
             return request.user.role.is_admin
+        
+        return False
+    
+
+class IsStaffUser(permissions.BasePermission):
+    """
+    Permission check for admin users
+    """
+    message = "You must be an admin to perform this action."
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Superusers always have permission
+        if request.user.is_superuser:
+            return True
+        
+        # Admin user should have permission
+        if hasattr(request.user, 'role') and request.user.role:
+            return request.user.role.is_admin
+        
+        # Check if user has staff role
+        if hasattr(request.user, 'role') and request.user.role:
+            return request.user.role.role_name == 'staff'
         
         return False
 
@@ -160,8 +186,8 @@ class CanManageResource(permissions.BasePermission):
         if request.user.is_superuser:
             return True
 
-        if hasattr(request.user, 'role') and request.user.role and request.user.role.is_admin:
-            return True
+        # if hasattr(request.user, 'role') and request.user.role and request.user.role.is_admin:
+        #     return True
 
         # Check manage permission
         model_name = self._get_model_name(view)
@@ -187,3 +213,246 @@ class CanManageResource(permissions.BasePermission):
         return None
     
     
+class IsDispatcher(permissions.BasePermission):
+    """
+    Permission to check if user is a dispatcher
+    """
+    message = "You don't have permission to manage this resource."
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        if request.user.is_superuser:
+            return True
+
+        if hasattr(request.user, 'role') and request.user.role and request.user.role.is_admin:
+            return True
+        
+        if hasattr(request.user, 'role') and request.user.role and request.user.role.role_name == 'dispatcher':
+            return True
+        
+        return False
+    
+    
+class IsBuyer(permissions.BasePermission):
+    """
+    Permission to check if user is a dispatcher
+    """
+    message = "You don't have permission to manage this resource."
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            # TODO: get tracking details and check in order
+            return False
+
+        if request.user.is_superuser:
+            return True
+
+        if hasattr(request.user, 'role') and request.user.role and request.user.role.is_admin:
+            return True
+        
+        if hasattr(request.user, 'role') and request.user.role and request.user.role.role_name == 'staff':
+            return True
+        
+        # TODO: get the order obj and check if order.user == user
+        
+        return False
+    
+
+class DefaultPermission:
+    '''
+    class to set default permissions for default roles
+    '''
+
+    def __init__(self, role):
+        self.role = role
+        self.perms_map = []
+
+    def set_buyer_default_perms(self):
+        from .models import RolePermission
+
+        self.perms_map = [
+            {
+                'model': 'user',
+                'app_label': 'accounts',
+                'perms': ['can_read', 'can_update', 'can_delete']
+            },
+            {
+                'model': 'address',
+                'app_label': 'finance',
+                'perms': ['can_read', 'can_update']
+            },
+            {
+                'model': 'order',
+                'app_label': 'finance',
+                'perms': ['can_read']
+            },
+            {
+                'model': 'review',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'product',
+                'app_label': 'products',
+                'perms': ['can_read']
+            },
+            {
+                'model': 'productstype',
+                'app_label': 'products',
+                'perms': ['can_read']
+            },
+            {
+                'model': 'productscategory',
+                'app_label': 'products',
+                'perms': ['can_read']
+            },
+        ]
+
+        self._create_perms()
+
+    def set_dispatcher_default_perms(self):
+        from .models import RolePermission
+
+        self.perms_map = [
+            {
+                'model': 'user',
+                'app_label': 'accounts',
+                'perms': ['can_read', 'can_update']
+            },
+            {
+                'model': 'address',
+                'app_label': 'finance',
+                'perms': ['can_read', 'can_update']
+            },
+            {
+                'model': 'order',
+                'app_label': 'finance',
+                'perms': ['can_read']
+            },
+            {
+                'model': 'product',
+                'app_label': 'products',
+                'perms': ['can_read']
+            },
+            {
+                'model': 'productstype',
+                'app_label': 'products',
+                'perms': ['can_read']
+            },
+            {
+                'model': 'productscategory',
+                'app_label': 'products',
+                'perms': ['can_read']
+            },
+        ]
+
+        self._create_perms()
+
+    def set_admin_default_perms(self):
+        self.perms_map = [
+            {
+                'model': 'user',
+                'app_label': 'accounts',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'address',
+                'app_label': 'finance',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'order',
+                'app_label': 'finance',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete', 'can_dispatch_driver']
+            },
+            {
+                'model': 'product',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'productstype',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'productscategory',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+        ]
+
+        self._create_perms()
+
+    def set_staff_default_perms(self):
+        self.perms_map = [
+            {
+                'model': 'user',
+                'app_label': 'accounts',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'address',
+                'app_label': 'finance',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'order',
+                'app_label': 'finance',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete', 'can_dispatch_driver']
+            },
+            {
+                'model': 'product',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'productstype',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+            {
+                'model': 'productscategory',
+                'app_label': 'products',
+                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+            },
+        ]
+
+        self._create_perms()
+
+    def _create_perms(self):
+        from .models import RolePermission
+        
+        with transaction.atomic():
+            x = 0
+            for perm_map in self.perms_map:
+                try:
+                    content_type = ContentType.objects.get(app_label=perm_map['app_label'], model=perm_map['model'])
+                except ContentType.DoesNotExist:
+                    continue
+
+                can_create = True if 'can_create' in perm_map['perms'] else False
+                can_read = True if 'can_read' in perm_map['perms'] else False
+                can_update = True if 'can_update' in perm_map['perms'] else False
+                can_delete = True if 'can_delete' in perm_map['perms'] else False
+                can_manage = True if 'can_manage' in perm_map['perms'] else False
+                can_create_account = True if 'can_create_account' in perm_map['perms'] else False
+                can_dispatch_driver = True if 'can_dispatch_driver' in perm_map['perms'] else False
+
+                perm = RolePermission.objects.create(
+                    role=self.role,
+                    content_type=content_type,
+                    can_create=can_create,
+                    can_read =can_read,
+                    can_update=can_update,
+                    can_delete=can_delete,
+                    can_manage=can_manage,
+                    can_create_account=can_create_account,
+                    can_dispatch_driver=can_dispatch_driver
+                )
+                x += 1
+                # print(f'{x}/{len(self.perms_map)} Permission created for {self.role.role_name}')
+
+

@@ -8,6 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.core import mail
+from .utils import printInJSON
 
 from .test_data import ROLE_DATA, USER_DATA, USER_PASSWORD_DATA, ROLE_PERMISSION_DATA
 from .models import Role, RolePermission
@@ -37,10 +38,6 @@ User = get_user_model()
 # color='#54fa72',
 # color="#f462b3",
 
-
-def printResult(data):
-    import json
-    print(json.dumps(data, indent=3))
 
 class BaseAPITest(APITestCase):
     def get_auth_token(self, email=None, password=None):
@@ -253,6 +250,9 @@ class UserAPITestCase(BaseAPITest):
         # check role 
         self.assertEqual(user.role.role_name, 'buyer')
 
+        # check default permissions
+        self.assertGreater(RolePermission.objects.count(), 0)
+
     def test_get_users(self):
         # log in as super admin
         token = self.get_auth_token(
@@ -291,7 +291,6 @@ class UserAPITestCase(BaseAPITest):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotEqual(response.data["data"]['first_name'], self.user.first_name)
    
-
     def test_set_user_login(self):
         # log in as super admin
         token = self.get_auth_token(
@@ -544,8 +543,9 @@ class RolePermissionAPITestCase(BaseAPITest):
         }
 
         resp = self.client.get(url, headers=headers)
+
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        # self.assertEqual(len(resp.data), 3)
+        self.assertGreater(len(resp.data['data']), 0)
 
 
 class APIThrottlingTest(BaseAPITest):
@@ -939,3 +939,4 @@ class RoleBasedAccessTestCase(BaseAPITest):
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+

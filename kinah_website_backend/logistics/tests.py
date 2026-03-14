@@ -3,32 +3,11 @@ from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from finance.models import Address
+from accounts.utils import printInJSON
 from .models import Vehicle, Dispatch
-import json
-from decimal import Decimal
-from datetime import datetime
-import uuid
 
 
 User = get_user_model()
-
-
-class DecimalDatetimeUUIDEncoder(json.JSONEncoder):
-    '''
-    Class to parse Decimal object
-    '''
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        if isinstance(obj, uuid.UUID) or isinstance(obj, datetime):
-            return str(obj)
-        return super().default(obj)
-
-
-def printResult(data):
-    print(json.dumps(data, indent=3, cls=DecimalDatetimeUUIDEncoder))
-
-
 
 
 class EcommerceAPITestCase(APITestCase):

@@ -6,8 +6,14 @@ from django.conf import settings
 from smtplib import SMTPException
 import logging
 
+from decimal import Decimal
+from datetime import datetime
+import uuid
+import json
+
 # Set up logging
 logger = logging.getLogger(__name__)
+
 
 def send_email(subject, text_message, html_message, recipient_email):
     """
@@ -273,6 +279,7 @@ def send_welcome_email(user):
     # Send the welcome email using the helper function
     return send_email(subject, text_message, html_message, user.email)
 
+
 def get_monthly_data(year):
     """Get sales for each month in a year"""
     try:
@@ -301,3 +308,23 @@ def get_monthly_data(year):
         # }
     except Exception as e:
         return None
+
+
+class DecimalDatetimeUUIDEncoder(json.JSONEncoder):
+    '''
+    Class to parse Decimal, UUID, Datetime, Set object in test
+    '''
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        if isinstance(obj, uuid.UUID) or isinstance(obj, datetime):
+            return str(obj)
+        if isinstance(obj, set):
+            return list(obj)
+        return super().default(obj)
+    
+def printInJSON(data):
+    '''
+    Helper function to print dict response to console in json
+    '''
+    print(json.dumps(data, indent=3, cls=DecimalDatetimeUUIDEncoder))

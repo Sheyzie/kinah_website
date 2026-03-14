@@ -2,10 +2,13 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
-from django.shortcuts import get_object_or_404
-from typing import Any
-
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from accounts.permissions import (
+    IsAdminUser, IsStaffUser, RoleBasedPermission,
+    CanDispatchDriver, CanManageResource, IsBuyer
+)
 from .tasks import process_webhook_event
 from .payment_service import PaystackInit
 from .models import (
@@ -31,6 +34,8 @@ class BaseAPIView(viewsets.ModelViewSet):
     """
     Base view to wrap all responses in a consistent format.
     """
+    filter_backends = [SearchFilter, OrderingFilter]
+    throttle_classes = [UserRateThrottle]
 
     def success(self, data=None, message="Success", code=status.HTTP_200_OK):
         return Response({
@@ -114,8 +119,15 @@ class BaseAPIView(viewsets.ModelViewSet):
 class AddressViewSet(BaseAPIView):
     serializer_class = AddressSerializer
     permission_classes = [IsAuthenticated]
+    search_fields = ['city', 'state', 'country']
+    ordering_fields = ['city', 'state', 'country', 'created_at', 'updated_at']
+    ordering = ['-created_at']
 
     def get_queryset(self):
+        user = self.request.user
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
+            return Address.objects.all().order_by('-created_at')
         return Address.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -123,12 +135,27 @@ class AddressViewSet(BaseAPIView):
 
 
 class OrderViewSet(BaseAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [RoleBasedPermission]
+    filter_backends = [SearchFilter, OrderingFilter]
+    throttle_classes = [UserRateThrottle]
+    search_fields = ['status', 'order_number', 'tracking_number']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+
+    def get_permissions(self):
+        if self.action == 'retrieve':
+            return [IsAuthenticated()]
+        
+        if self.action == 'destroy':
+            return [CanManageResource()]
+        
+        return super().get_permissions()
 
     def get_queryset(self):
         user = self.request.user
 
-        if user.is_staff: # TODO: set accurate permission
+        has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
+        if has_access:
             return Order.objects.all()
 
         return Order.objects.filter(user=user)
@@ -169,7 +196,32 @@ class OrderViewSet(BaseAPIView):
             message="Order status updated successfully"
         )
     
-    @action(detail=True, methods=["put"], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=["post"], permission_classes=[IsBuyer])
+    def cancel_order(self, request, pk=None):
+        # TODO: get tracking details and check in order
+        order = self.get_object()
+
+        status = request.data.get('status')
+        if status == 'shipped':
+            return self.failure(
+                message='Unauthorised route for shipment',
+                code=400
+            )
+
+        serializer = OrderStatusUpdateSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.update_status(order)
+
+        return self.success(
+            message="Order status updated successfully"
+        )
+    
+    @action(detail=True, methods=["put"], permission_classes=[CanDispatchDriver])
     def shipments(self, request, pk=None):
         order = self.get_object()
         
@@ -216,6 +268,9 @@ class CouponViewSet(BaseAPIView):
     queryset = Coupon.objects.all()
     serializer_class = CouponSerializer
     permission_classes = [IsAdminUser]
+    search_fields = ['valid_from', 'valid_to', 'is_active']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
 
     @action(detail=False, methods=["post"], permission_classes=[AllowAny])
     def validate_coupon(self, request):
@@ -233,7 +288,10 @@ class CouponViewSet(BaseAPIView):
 
 class PaymentViewSet(BaseAPIView):
     serializer_class = PaymentSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsAdminUser, CanManageResource]
+    search_fields = ['transaction_id', 'payment_method', 'status']
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
 
     def get_permissions(self):
         if self.action == 'create':

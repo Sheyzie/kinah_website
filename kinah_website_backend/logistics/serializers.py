@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 from finance.models import Address
 from accounts.models import Role
+from accounts.permissions import DefaultPermission
 from .models import Vehicle, Dispatch
 from typing import Any
 
@@ -259,6 +260,10 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
             'is_active': True,
             'is_editable': False
         })
+
+        if created:
+            perms = DefaultPermission(role)
+            perms.set_dispatcher_default_perms()
 
         driver = User.objects.create_user(role=role, **driver_data)
         driver.set_password(password)

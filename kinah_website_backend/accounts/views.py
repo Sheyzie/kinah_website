@@ -18,6 +18,8 @@ from datetime import date
 
 from .permissions import (
     IsAdminUser, RoleBasedPermission,
+    IsStaffUser, CanCreateAccount,
+    CanManageResource, CanDispatchDriver
 )
 from .models import Role, RolePermission
 from .serializers import (
@@ -129,7 +131,6 @@ class BaseModelViewSet(viewsets.ModelViewSet):
         )
 
 
-
 class UserViewSet(BaseModelViewSet):
     serializer_class = UserSerializer
     queryset = User.objects.all()
@@ -141,10 +142,10 @@ class UserViewSet(BaseModelViewSet):
     ordering_fields = ['first_name', 'last_name', 'email', 'created_at', 'updated_at']
     ordering = ['-created_at']
 
-    def get_permissions(self):
-        if self.action == 'activate':
-            return [IsAdminUser()]
-        return super().get_permissions()
+    # def get_permissions(self):
+    #     if self.action == 'activate':
+    #         return [IsAdminUser()]
+    #     return super().get_permissions()
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -186,7 +187,7 @@ class UserViewSet(BaseModelViewSet):
             code=200
         )
     
-    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser]) # , permission_classes=[IsAuthenticated]
+    @action(detail=True, methods=['get'], permission_classes=[IsStaffUser]) # , permission_classes=[IsAuthenticated]
     def activate(self, request, pk=None):
         user = self.get_object()
         user.is_active = True
@@ -196,7 +197,7 @@ class UserViewSet(BaseModelViewSet):
             code=200
         )
     
-    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser]) # , permission_classes=[IsAuthenticated]
+    @action(detail=True, methods=['get'], permission_classes=[IsStaffUser]) # , permission_classes=[IsAuthenticated]
     def deactivate(self, request, pk=None):
         user = self.get_object()
         user.is_active = False
@@ -328,6 +329,7 @@ class LogoutView(APIView):
                 code=status.HTTP_400_BAD_REQUEST
             )
 
+
 class LogoutAllView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [UserRateThrottle]
@@ -392,42 +394,18 @@ class SetPasswordView(generics.GenericAPIView):
 )
 @api_view(['GET'])
 @throttle_classes([UserRateThrottle])
-@permission_classes([RoleBasedPermission])
+@permission_classes([IsAdminUser])
 def get_content_types(request):
     """Get all content types for objects dropdown"""
-    ALLOWED_MODEL = [
-        # accounts
-        'role', 'rolepermission', 'user',
-
-        # communications
-        'emailtemplate', 'smstemplate', 'emailsignature', 'smsmessage',
-        'emailmessage', 'communicationlog', 'lead', 'leadactivity',
-        'supportticket', 'ticketresponse', 'ticketescalation',
-
-        # finances
-        'bank', 'bankaccount', 'itemcategory', 'invoice', 'financeitem',
-        'payment', 'mpesapayment', 'bill', 'billitem', 'billpayment',
-        'expense', 'creditnote', 'receivable', 'commission',
-
-        # human_resources
-        'joblevel', 'jobposition', 'department', 'contract', 'earning',
-        'deduction', 'bonus', 'salaryadvance', 'penalty', 'attendance',
-        'leaveapplication', 'leavetracker', 'leaveapprovalworkflow',
-        'holiday', 'workingday',
-
-        # parcels
-        'delivery', 'offload', 'parcel', 'item', 'parceltracking',
-        'collection',
-
-        # people
-        'contact',
-
-        # route_management
-        'location', 'station', 'destination', 'route',
-
-        # vehicle_managements
-        'vehiclecategory', 'vehicle'
-    ]
+    
+    Model_Map = {
+        'accounts': {'role', 'rolepermission', 'user'},
+        'finance': {
+            'address', 'order', 'coupon', 'payment'
+        },
+        'logistics': {'vehicle', 'dispatch'},
+        'products': {'productscategory', 'productstype', 'product', 'review'},
+    }
 
     try:
         content_types = ContentType.objects.all().order_by('app_label', 'model')
@@ -439,11 +417,11 @@ def get_content_types(request):
                 'name': f"{ct.app_label}.{ct.model}"
             }
             for ct in content_types
-            if ct.model in ALLOWED_MODEL
+            if ct.model in Model_Map.get(ct.app_label, {})
         ]
         return Response({
             'status': "success",
-            "message": "Contentypes retrived success fully",
+            "message": "Contentypes retrieved successfully",
             "data": {
                 "count": len(data),
                 "data": data
