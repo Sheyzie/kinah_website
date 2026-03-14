@@ -195,6 +195,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User model
 AUTH_USER_MODEL = 'accounts.User'
 
+# Password reset timout
+PASSWORD_RESET_TIMEOUT = 900
 
 # Django REST Framework
 REST_FRAMEWORK = {

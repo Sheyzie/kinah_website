@@ -34,6 +34,7 @@ class UserManager(BaseUserManager):
             role: Role=None,
             **extra_fields
         ):
+ 
         if not email:
             raise ValueError('The Email must be set')
         if not first_name:
@@ -62,7 +63,9 @@ class UserManager(BaseUserManager):
             **extra_fields
         )
         user.set_password(password)
+        user.is_active = True
         user.save(using=self._db)
+        
         return user
 
     @transaction.atomic
@@ -90,6 +93,37 @@ class UserManager(BaseUserManager):
             'is_default': False,
             'is_active': True,
             'is_editable': False
+        })
+
+        user = self.create_user(email, first_name, last_name, phone, password, role=role, **extra_fields)
+        
+        return user
+    
+    @transaction.atomic
+    def create_staffuser(
+        self, 
+            email: str, 
+            first_name: str, 
+            last_name: str, 
+            phone: str, 
+            password: str=None, 
+            **extra_fields
+        ):
+        extra_fields.setdefault('is_staff', False)
+        extra_fields.setdefault('is_superuser', False)
+        extra_fields.setdefault('is_active', True)
+
+        if extra_fields.get('is_staff') is True:
+            raise ValueError('Staff user must have is_staff=False.')
+        if extra_fields.get('is_superuser') is True:
+            raise ValueError('Staff user must have is_superuser=False.')
+        
+        role, created = Role.objects.get_or_create(role_name='staff', defaults={
+            'color': "#ffbb00",
+            'is_admin': False,
+            'is_default': False,
+            'is_active': True,
+            'is_editable': True
         })
 
         user = self.create_user(email, first_name, last_name, phone, password, role=role, **extra_fields)

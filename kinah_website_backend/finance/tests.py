@@ -382,7 +382,7 @@ class EcommerceAPITestCase(APITestCase):
         }
 
         response = self.client.put(url, data, format='json')
-        printResult(response.data)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.dispatch, dispatch)

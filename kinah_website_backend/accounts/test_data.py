@@ -31,14 +31,12 @@ USER_DATA = {
         "last_name": "Doe",
         "email": "john.doe@example.com",
         "phone": "+254712345678",
-        "photo": '', # <--- pass an empty string instead of None
     },
     "update": {
         "first_name": "John Updated",
         "last_name": "Doe Updated",
         "email": "john.updated@example.com",
         "phone": "+254787654321",
-        "photo": '', # <--- pass an empty string instead of None
     },
     "login": {
         "email": "john.doe@example.com",
@@ -58,7 +56,6 @@ USER_PASSWORD_DATA = {
 ROLE_PERMISSION_DATA = {
     "create": {
         "role_id": 1,
-        "content_type_ids": [1],
         "can_create": True,
         "can_read": True,
         "can_update": False,
@@ -69,7 +66,6 @@ ROLE_PERMISSION_DATA = {
     },
     "update": {
         "role_id": 1,
-        "content_type_ids": [1],
         "can_create": False,
         "can_read": True,
         "can_update": True,

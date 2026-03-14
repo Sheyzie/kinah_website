@@ -9,7 +9,7 @@ from django.utils.encoding import force_str
 
 from .models import Role, RolePermission
 from .utils import build_password_reset_link
-from .tasks import send_password_reset_link_task, send_welcome_email_task
+from .tasks import send_password_reset_link_task, send_welcome_email_task, send_email_verification_task
 
 
 User = get_user_model()
@@ -178,7 +178,9 @@ class UserSerializer(serializers.ModelSerializer):
             # Send password reset link
             reset_link = build_password_reset_link(user=user, request=self.context['request'])
             send_welcome_email_task.delay(user_id=user.id)
-            send_password_reset_link_task.delay(user_id=user.id, reset_link=reset_link, password=password)
+            send_email_verification_task(user_id=user.id, reset_link=reset_link)
+
+            # send_password_reset_link_task.delay(user_id=user.id, reset_link=reset_link, password=password)
 
             return user
 

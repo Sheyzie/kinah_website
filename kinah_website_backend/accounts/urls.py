@@ -27,7 +27,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # Account management endpoints
-    path('accounts/set-password/', SetPasswordView.as_view()),
+    path('accounts/set-password/', SetPasswordView.as_view(), name='set_password'),
     path('accounts/password-reset/', password_reset_request, name='password_reset'),
     path('accounts/logout/', LogoutView.as_view(), name='logout'),
     path('accounts/logout-all/', LogoutAllView.as_view(), name='logout_users'),

@@ -18,8 +18,6 @@ from datetime import date
 
 from .permissions import (
     IsAdminUser, RoleBasedPermission,
-    CanCreateAccount, CanDispatchDriver,
-    CanManageResource
 )
 from .models import Role, RolePermission
 from .serializers import (
@@ -35,16 +33,101 @@ User = get_user_model()
 
 
 class BaseModelViewSet(viewsets.ModelViewSet):
-    """Base ViewSet with common functionality"""
+    """
+    Base view to wrap all responses in a consistent format.
+    """
+
+    def success(self, data=None, message="Success", code=status.HTTP_200_OK):
+        return Response({
+            "status": "success",
+            "message": message,
+            "data": data
+        }, status=code)
+
+    def failure(self, errors=None, message="Failed", code=status.HTTP_400_BAD_REQUEST):
+        return Response({
+            "status": "failure",
+            "message": message,
+            "errors": errors
+        }, status=code)
 
     def handle_exception(self, exc):
         """Handle exceptions consistently across all ViewSets"""
         if isinstance(exc, (KeyError, ValueError)):
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST
+            return self.failure(
+                message={"detail": str(exc)},
             )
         return super().handle_exception(exc)
+    
+        
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        model_name = serializer.Meta.model.__name__ # get model name
+
+        if serializer.is_valid(raise_exception=True):
+            self.perform_create(serializer)
+            return self.success(
+                data=serializer.data,
+                message=f"{model_name} created successfully",
+                code=201
+            )
+
+        return self.failure(
+            errors=serializer.errors,
+            message=f"{model_name}  creation failed",
+            code=400
+        )
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        model_name = queryset.model.__name__ # get model name
+        data = {
+            'count': len(serializer.data),
+            'data': serializer.data
+        }
+
+        return self.success(
+            data=data,
+            message=f"{model_name}  retrieved successfully",
+        )
+    
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        model_name = instance.__class__.__name__ # get model name
+
+        return self.success(
+            data=serializer.data,
+            message=f"{model_name} retrieved successfully"
+        )
+    
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=False)
+        model_name = instance.__class__.__name__ # get model name
+
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return self.success(
+                data=serializer.data,
+                message=f"{model_name} updated successfully"
+            )
+
+        return self.failure(
+            errors=serializer.errors,
+            message=f"{model_name} update failed"
+        )
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        model_name = instance.__class__.__name__
+        instance.delete()
+        return self.success(
+            message=f"{model_name} deleted successfully",
+            code=204
+        )
+
 
 
 class UserViewSet(BaseModelViewSet):
@@ -94,46 +177,46 @@ class UserViewSet(BaseModelViewSet):
 
         return queryset.select_related('role')
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        self.perform_create(serializer)
-        # Send password reset link
-        # send_password_reset_link(user=serializer.instance, request=request)
-
-        return Response(
-            {"detail": "User created successfully. Email has been sent to set password."},
-            status=status.HTTP_201_CREATED
-        )
-
-    @action(detail=False, methods=['get']) # , permission_classes=[IsAuthenticated]
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated]) # , permission_classes=[IsAuthenticated]
     def me(self, request):
         serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
+        return self.success(
+            message='User retrieved succesfully',
+            data=serializer.data,
+            code=200
+        )
     
-    @action(detail=True, methods=['get']) # , permission_classes=[IsAuthenticated]
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser]) # , permission_classes=[IsAuthenticated]
     def activate(self, request, pk=None):
         user = self.get_object()
         user.is_active = True
         user.save()
-        return Response('User activated successfully')
+        return self.success(
+            message='User activated successfully',
+            code=200
+        )
     
-    @action(detail=True, methods=['get']) # , permission_classes=[IsAuthenticated]
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser]) # , permission_classes=[IsAuthenticated]
     def deactivate(self, request, pk=None):
         user = self.get_object()
         user.is_active = False
         user.save()
-        return Response('User deactivated successfully')
+        return self.success(
+            message='User deactivated successfully',
+            code=200
+        )
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def set_password(self, request, pk=None):
         user = self.get_object()
         serializer = SetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user.set_password(serializer.validated_data['password'])
         user.save()
-        return Response({"detail": "Password has been set successfully."})
+        return self.success(
+            message='Password has been set successfully.',
+            code=200
+        )
 
 
 class RoleViewSet(BaseModelViewSet):
@@ -182,21 +265,35 @@ class RolePermissionViewSet(BaseModelViewSet):
 
         return queryset
 
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-        # Ensure consistent response format
-        if isinstance(response.data, list):
-            response.data = {
-                'count': len(response.data),
-                'results': response.data
-            }
-        return response
+    # def list(self, request, *args, **kwargs):
+    #     response = super().list(request, *args, **kwargs)
+    #     # Ensure consistent response format
+    #     if isinstance(response.data, list):
+    #         response.data = {
+    #             'count': len(response.data),
+    #             'results': response.data
+    #         }
+    #     return super().list()
 
 
 # Authentication Views
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [UserRateThrottle]
+
+    def success(self, data=None, message="Success", code=status.HTTP_200_OK):
+        return Response({
+            "status": "success",
+            "message": message,
+            "data": data
+        }, status=code)
+
+    def failure(self, errors=None, message="Failed", code=status.HTTP_400_BAD_REQUEST):
+        return Response({
+            "status": "failure",
+            "message": message,
+            "errors": errors
+        }, status=code)
 
     @extend_schema(
         request={"refresh": "string"},
@@ -208,23 +305,46 @@ class LogoutView(APIView):
     def post(self, request):
         refresh_token = request.data.get("refresh")
         if not refresh_token:
-            return Response(
-                {"detail": "Refresh token is required"},
-                status=status.HTTP_400_BAD_REQUEST
+            return self.failure(
+                message="Refresh token is required",
+                code=status.HTTP_400_BAD_REQUEST
             )
 
         try:
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"detail": "Successfully logged out"})
+            return self.success(
+                message="Successfully logged out",
+                code=status.HTTP_200_OK
+            )
         except TokenError:
-            return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
+            return self.failure(
+                message="Token not valid",
+                code=status.HTTP_400_BAD_REQUEST
+            )
         except Exception:
-            return Response({"detail": "Logout failed"}, status=status.HTTP_400_BAD_REQUEST)
+            return self.failure(
+                message="Log out failed",
+                code=status.HTTP_400_BAD_REQUEST
+            )
 
 class LogoutAllView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     throttle_classes = [UserRateThrottle]
+
+    def success(self, data=None, message="Success", code=status.HTTP_200_OK):
+        return Response({
+            "status": "success",
+            "message": message,
+            "data": data
+        }, status=code)
+
+    def failure(self, errors=None, message="Failed", code=status.HTTP_400_BAD_REQUEST):
+        return Response({
+            "status": "failure",
+            "message": message,
+            "errors": errors
+        }, status=code)
 
     @extend_schema(
         responses={200: OpenApiResponse(description="Logged out on all devices")}
@@ -236,7 +356,9 @@ class LogoutAllView(APIView):
                 RefreshToken(token.token).blacklist()
             except Exception:
                 pass
-        return Response({"detail": "Successfully logged out from all devices"})
+        return self.success(
+            message="Successfully logged out from all devices"
+        )
 
 
 class SetPasswordView(generics.GenericAPIView):
@@ -244,11 +366,20 @@ class SetPasswordView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
 
+    def success(self, data=None, message="Success", code=status.HTTP_200_OK):
+        return Response({
+            "status": "success",
+            "message": message,
+            "data": data
+        }, status=code)
+
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"detail": "Password has been set successfully."})
+        return self.success(
+            message="Password has been set successfully."
+        )
 
 
 # API Views
@@ -310,12 +441,20 @@ def get_content_types(request):
             for ct in content_types
             if ct.model in ALLOWED_MODEL
         ]
-        return Response(data)
+        return Response({
+            'status': "success",
+            "message": "Contentypes retrived success fully",
+            "data": {
+                "count": len(data),
+                "data": data
+            }
+        })
     except Exception as e:
-        return Response(
-            {"error": f"Failed to fetch content types: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({
+                "status": "failure",
+                "message": 'Failed to fetch content types',
+                "errors": {str(e)}
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(
@@ -337,7 +476,14 @@ def get_permission_options(request):
         {'id': 'can_create_account', 'name': 'Can Create Account'},
         {'id': 'can_dispatch_driver', 'name': 'Can Dispatch Driver'},
     ]
-    return Response(permission_options)
+    return Response({
+        'status': "success",
+        "message": "Contentypes retrived success fully",
+        "data": {
+            "count": len(permission_options),
+            "data": permission_options
+        }
+    }, status=status.HTTP_200_OK)
 
 
 @extend_schema(
@@ -356,12 +502,17 @@ def role_user_counts(request):
         ).values('id', 'role_name', 'user_count')
 
         counts_dict = {role['id']: role['user_count'] for role in roles_with_counts}
-        return Response(counts_dict)
+        return Response({
+            'status': "success",
+            "message": "Contentypes retrived success fully",
+            "data": counts_dict
+        })
     except Exception as e:
-        return Response(
-            {"error": f"Failed to get role user counts: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({
+            "status": "failure",
+            "message": 'Failed to get role user counts',
+            "errors": {str(e)}
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(
@@ -385,12 +536,17 @@ def specific_role_user_counts(request):
         ).values('id', 'user_count')
 
         counts_dict = {role['id']: role['user_count'] for role in roles_with_counts}
-        return Response(counts_dict)
+        return Response({
+            'status': "success",
+            "message": "Content types retrived successfully",
+            "data": counts_dict
+        })
     except Exception as e:
-        return Response(
-            {"error": f"Failed to get specific role user counts: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({
+            "status": "failure",
+            "message": 'Failed to get specific role user counts',
+            "errors": {str(e)}
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(
@@ -406,10 +562,10 @@ def password_reset_request(request):
     email = request.data.get('email')
 
     if not email:
-        return Response(
-            {'detail': 'Account and email are required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({
+            "status": "failure",
+            "message": 'Account and email are required',
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     user = get_user_by_email(email)
 
@@ -417,9 +573,10 @@ def password_reset_request(request):
         reset_link = build_password_reset_link(user=user, request=request)
         send_password_reset_link_task.delay(user_id=user.id, reset_link=reset_link, password=None)
 
-    return Response(
-        {'detail': f'A reset link has been sent to {email}'}
-    )
+    return Response({
+            "status": "success",
+            "message": f'A reset link has been sent to {email}',
+        }, status=status.HTTP_200_OK)
 
 
 # Utility functions
