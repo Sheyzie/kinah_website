@@ -189,3 +189,15 @@ class User(AbstractUser):
         verbose_name = 'User'
         verbose_name_plural = 'Users'
 
+
+class OTPRecord(models.Model):
+    EVENT_CHOICES = (
+        ('verify', 'Verify'),
+        ('cancel', 'Cancel'),
+    )
+    
+    otp = models.CharField(max_length=6, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    order = models.ForeignKey('finance.Order', on_delete=models.CASCADE, null=True, blank=True)
+    event = models.CharField(max_length=20, choices=EVENT_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)

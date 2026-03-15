@@ -15,7 +15,7 @@ class AddressAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['order_number', 'payment_status', 'tracking_number', 'status']
+    list_display = ['order_number', 'payment_status', 'customer_email', 'status']
     list_filter = ['payment_status', 'status', 'payment_method']
     search_fields = ['-created_at', 'order_number', 'tracking_number']
 

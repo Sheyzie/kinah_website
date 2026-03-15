@@ -125,7 +125,12 @@ class Order(models.Model):
         blank=True
     )
 
+    # to cancel order for non authenticated user
+    # cancel_pin = models.CharField(max_length=6, null=True, blank=True)
+    # cancel_pin_created_at = models.DateTimeField(null=True, blank=True)
+
     # additional information
+    customer_email = models.EmailField(null=True, blank=True)
     customer_note = models.TextField(null=True, blank=True)
     admin_note = models.TextField(null=True, blank=True)
     ip_address = models.GenericIPAddressField(null=True,blank=True)

@@ -5,14 +5,16 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.utils import timezone
+from accounts.models import OTPRecord
 from accounts.permissions import (
     IsAdminUser, IsStaffUser, RoleBasedPermission,
     CanDispatchDriver, CanManageResource, IsBuyer
 )
-from .tasks import process_webhook_event
+from .tasks import process_webhook_event, send_order_cancel_pin_task
 from .payment_service import PaystackInit
 from .models import (
-    Address, Order, 
+    Address, Order, OrderStatusHistory,
     Coupon, Payment, WebhookEvent
 )
 from .serializers import (
@@ -196,26 +198,73 @@ class OrderViewSet(BaseAPIView):
             message="Order status updated successfully"
         )
     
-    @action(detail=True, methods=["post"], permission_classes=[IsBuyer])
-    def cancel_order(self, request, pk=None):
-        # TODO: get tracking details and check in order
-        order = self.get_object()
+    @action(detail=True, methods=["get"], permission_classes=[AllowAny])
+    def request_cancel_pin(self, request, pk=None):
+        from django.contrib.auth.hashers import make_password
 
-        status = request.data.get('status')
-        if status == 'shipped':
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
             return self.failure(
-                message='Unauthorised route for shipment',
+                message="No Order matches the given query."
+            )
+        pin = self.generate_cancel_pin()
+
+        # save hashed pin to database
+        otp = OTPRecord.objects.create(
+            otp=make_password(pin),
+            order=order,
+            event='cancel'
+        )
+
+        send_order_cancel_pin_task.delay(order.id, pin)
+
+        return self.success(
+            message="Order cancel pin sent to email successfully"
+        )
+
+    @action(detail=True, methods=["post"], permission_classes=[AllowAny])
+    def cancel_order(self, request, pk=None):
+        try:
+            order = Order.objects.get(pk=pk)
+        except Order.DoesNotExist:
+            return self.failure(
+                message="No Order matches the given query."
+            )
+
+        pin = request.data.get('pin', None)
+
+        if not pin:
+            return self.failure(
+                message='Cancel pin is required to complete this action',
                 code=400
             )
 
-        serializer = OrderStatusUpdateSerializer(
-            data=request.data,
-            context={"request": request}
+        if order.status in ['delivered', 'cancelled', 'refunded']:
+            return self.failure(
+                message=f'Cannot cancel order with status {order.status}',
+                code=400
+            )
+        
+        is_valid = self.verify_cancel_pin(order, pin)
+
+        if not is_valid:
+            return self.failure(
+                message=f'Invalid PIN - {pin}',
+                code=400
+            )
+        
+        order.status = 'cancelled'
+        order.cancel_pin = None
+        order.cancel_pin_created_at = None
+        order.save()
+
+        OrderStatusHistory.objects.create(
+            order=order,
+            status=order.status,
+            notes='',
+            created_by=request.user if request.user.is_authenticated else None
         )
-
-        serializer.is_valid(raise_exception=True)
-
-        serializer.update_status(order)
 
         return self.success(
             message="Order status updated successfully"
@@ -250,7 +299,7 @@ class OrderViewSet(BaseAPIView):
         return self.success(
             message="Order dispatched successfully"
         )
-    
+
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         user = request.user
@@ -263,6 +312,27 @@ class OrderViewSet(BaseAPIView):
             code=403
         )
     
+    def generate_cancel_pin(self):
+        import random
+        return str(random.randint(100000, 999999))
+    
+    def verify_cancel_pin(self, order, pin):
+        from datetime import timedelta
+        from django.contrib.auth.hashers import check_password
+
+        otp_record = OTPRecord.objects.filter(order=order).order_by('-created_at').first()
+
+        if not otp_record:
+            return False
+
+        expiry_time = otp_record.created_at + timedelta(minutes=2)
+
+        if timezone.now() > expiry_time:
+            return False
+
+        # compare raw pin with saved hashed pin
+        return check_password(pin, otp_record.otp)
+
 
 class CouponViewSet(BaseAPIView):
     queryset = Coupon.objects.all()
@@ -311,17 +381,6 @@ class PaymentViewSet(BaseAPIView):
         email = None
         amount = request.data.get('amount', None)
         order_id = request.data.get('order_id', None)
-
-        if not user.is_authenticated:
-            email = request.data.get('email', None)
-        else:
-            email = user.email
-
-        if not email or amount is None:
-            return self.failure(
-                message=f"Email and Amount is required for this action",
-                code=400
-            )
         
         if not order_id:
             return self.failure(
@@ -338,9 +397,8 @@ class PaymentViewSet(BaseAPIView):
         try:
 
             order = Order.objects.get(id=order_id)
-
             paystack = PaystackInit()
-            success, message, data = paystack.initialize(email, amount, str(order.id))
+            success, message, data = paystack.initialize(order.customer_email, amount, str(order.id))
 
             if not success:
                 return self.failure(

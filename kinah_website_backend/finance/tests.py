@@ -3,8 +3,13 @@ from rest_framework import status
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
+from django.utils import timezone
+from unittest.mock import patch
+
 from products.models import Product, ProductsCategory, ProductsType
 from logistics.models import Vehicle, Dispatch
+from accounts.models import OTPRecord
 from accounts.utils import printInJSON
 from .models import Address, Order, OrderStatusHistory, Payment, Coupon, OrderItem
 
@@ -376,6 +381,86 @@ class EcommerceAPITestCase(APITestCase):
         order.refresh_from_db()
         self.assertEqual(order.dispatch, dispatch)
 
+    @patch("finance.tasks.send_order_cancel_pin_task.delay")
+    def test_request_cancel_pin(self, mock_task):
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345699'
+        )
+
+        order = Order.objects.create(
+            user=admin_user,
+            payment_method="paystack",
+            order_number="ORD-001",
+            status='processing',
+            customer_email=self.user.email
+        )
+
+        item = OrderItem.objects.create(
+            product=self.product,
+            order=order,
+            quantity=2,
+            unit_price=100.00,
+        )
+
+        url = reverse('order-detail', kwargs={'pk': order.id})
+        url = url + 'request_cancel_pin/'
+
+        response = self.client.get(url, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertNotEqual(order.status, None)
+        self.assertGreater(OTPRecord.objects.count(), 0)
+
+        # check if task was called
+        mock_task.assert_called_once()
+
+    def test_cancel_order(self):
+        admin_user = User.objects.create_superuser(
+            email='superUser@example.com', 
+            password='password123', 
+            first_name='Admin', 
+            last_name='User', 
+            phone='+2348012345699'
+        )
+
+        order = Order.objects.create(
+            user=admin_user,
+            payment_method="paystack",
+            order_number="ORD-001",
+            status='processing',
+            customer_email=self.user.email
+        )
+
+        item = OrderItem.objects.create(
+            product=self.product,
+            order=order,
+            quantity=2,
+            unit_price=100.00,
+        )
+
+        otp = OTPRecord.objects.create(
+            otp=make_password('123456'),
+            order=order,
+            event='cancel'
+        )
+
+        url = reverse('order-detail', kwargs={'pk': order.id})
+        url = url + 'cancel_order/'
+        data = {
+            'pin': 123456
+        }
+
+        response = self.client.post(url, data, format='json')
+        printInJSON(response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
+
     # ---------------------
     # Payment Tests
     # ---------------------
@@ -397,7 +482,7 @@ class EcommerceAPITestCase(APITestCase):
 
         url = reverse('payment-list')
         response = self.client.post(url, data, format='json')
-
+        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('access_code', response.data['data'])
         self.assertIn('reference', response.data['data'])

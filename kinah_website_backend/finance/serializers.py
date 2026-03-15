@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.db import transaction
 from logistics.models import Dispatch
+from .tasks import send_order_creation_email_task, send_order_confirmation_email_task
 from .models import (
     Address, Order, OrderItem, OrderStatusHistory, 
     Coupon, Payment, DISCOUNT_TYPE_CHOICE,
@@ -186,7 +187,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'status', 'payment_status', 'payment_method', 'shipping_cost',
             'tax_name', 'tax_type', 'tax_amount', 'discount_type', 'discount_value',
             'subtotal', 'discount', 'total_amount', 'tracking_number',
-            'shipping_carrier', 'estimated_delivery', 'customer_note', 'admin_note',
+            'shipping_carrier', 'estimated_delivery', 'customer_email', 'customer_note', 'admin_note',
             'ip_address', 'coupon_code', 'items', 'status_history', 'payments', 'dispatch',
             'created_at', 'updated_at', 'paid_at', 'shipped_at', 'delivered_at'
         ]
@@ -232,7 +233,7 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'shipping_address_id', 'billing_address_id', 'payment_method',
             'shipping_cost', 'tax_name', 'tax_type', 'tax_amount',
-            'discount_type', 'discount_value', 'customer_note',
+            'discount_type', 'discount_value', 'customer_note', 'customer_email',
             'coupon_code', 'items'
         ]
     
@@ -293,10 +294,16 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['payment_status'] = 'pending'
         validated_data['status'] = 'pending'
         validated_data.pop('dispatch', None)
+
+        customer_email = validated_data.pop('customer_email', None)
+
+        if not user.is_authenticated and customer_email is None:
+            raise serializers.ValidationError('Customer email is required for a non user')
         
         # Create order
         order = Order.objects.create(
             user=user if user.is_authenticated else None,
+            customer_email=user.email if user.is_authenticated else customer_email,
             **validated_data
         )
         
@@ -327,7 +334,12 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
             notes="Order created",
             created_by=user if user.is_authenticated else None
         )
-        
+
+        order_link = self.context['request'].build_absolute_uri(
+            f"/orders/{order.id}/"
+        )
+        send_order_creation_email_task.delay(order.id, order_link)
+        send_order_confirmation_email_task.delay(order.id, order_link)
         return order
     
     @transaction.atomic

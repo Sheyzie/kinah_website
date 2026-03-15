@@ -237,7 +237,7 @@ class IsDispatcher(permissions.BasePermission):
     
 class IsBuyer(permissions.BasePermission):
     """
-    Permission to check if user is a dispatcher
+    Permission to check if user is a buyer
     """
     message = "You don't have permission to manage this resource."
 
