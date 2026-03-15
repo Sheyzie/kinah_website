@@ -68,7 +68,6 @@ class UserManager(BaseUserManager):
             **extra_fields
         )
         user.set_password(password)
-        user.is_active = True
         user.save(using=self._db)
         
         return user
@@ -195,7 +194,7 @@ class OTPRecord(models.Model):
         ('verify', 'Verify'),
         ('cancel', 'Cancel'),
     )
-    
+
     otp = models.CharField(max_length=6, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     order = models.ForeignKey('finance.Order', on_delete=models.CASCADE, null=True, blank=True)

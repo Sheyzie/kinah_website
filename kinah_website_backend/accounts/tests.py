@@ -1,17 +1,20 @@
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
-from unittest.mock import patch, MagicMock
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
-from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.core import mail
+from unittest.mock import patch, MagicMock
+
+from finance.models import Order
 from .utils import printInJSON
 
 from .test_data import ROLE_DATA, USER_DATA, USER_PASSWORD_DATA, ROLE_PERMISSION_DATA
-from .models import Role, RolePermission
+from .models import Role, RolePermission, OTPRecord
 
 
 User = get_user_model()
@@ -49,7 +52,7 @@ class BaseAPITest(APITestCase):
         }
         
         response = self.client.post(url, data, format='json')
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
@@ -241,7 +244,7 @@ class UserAPITestCase(BaseAPITest):
         data['role_id'] = self.role.id
 
         response = self.client.post(url, data, headers=headers, format='multipart')
-        
+
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user = User.objects.get(email=USER_DATA["register"]['email'])
@@ -360,6 +363,66 @@ class UserAPITestCase(BaseAPITest):
         # # confirm deletion
         get_response = self.client.get(url, headers=headers)
         self.assertEqual(get_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_verify_user(self):
+        # log in as super admin
+        token = self.get_auth_token(
+            email=self.superadmin.email,
+            password='superAdminUser'
+        )
+
+        headers = {
+            'Authorization': f'Bearer {token}'
+        }
+
+        # password reset info
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.id))
+        token = default_token_generator.make_token(self.user)
+        
+        data = {
+            'uidb64': uidb64,
+            'token': token,
+            'otp': '123456'
+        }
+
+        otp = OTPRecord.objects.create(
+            otp=make_password('123456'),
+            user=self.user,
+            event='verify'
+        )
+
+        url = reverse('users-list') + 'verify_user/'
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+
+    def test_get_user_profile(self):
+        # log in as user
+        token = self.get_auth_token(
+            email=self.user.email,
+            password='John6b4pt15t'
+        )
+
+        headers = {
+            'Authorization': f'Bearer {token}'
+        }
+
+        order = Order.objects.create(
+            user=self.user,
+            payment_method="paystack",
+            order_number="ORD-001",
+            status='processing',
+            customer_email=self.user.email
+        )
+
+        url = reverse('users-list') + 'me/'
+        response = self.client.get(url, headers=headers)
+        printInJSON(response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
 
 
 class RolePermissionAPITestCase(BaseAPITest):

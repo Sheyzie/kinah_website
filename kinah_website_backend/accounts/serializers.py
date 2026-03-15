@@ -8,8 +8,8 @@ from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 
 from .models import Role, RolePermission
-from .utils import build_password_reset_link
-from .tasks import send_password_reset_link_task, send_welcome_email_task, send_email_verification_task
+from .utils import build_user_verification_link
+from .tasks import send_welcome_email_task, send_email_verification_task
 
 
 User = get_user_model()
@@ -175,13 +175,15 @@ class UserSerializer(serializers.ModelSerializer):
             user.set_password(password)
             user.save()
 
-            # Send password reset link
-            reset_link = build_password_reset_link(user=user, request=self.context['request'])
+            # Send verification link
+            verification_link = build_user_verification_link(user=user, request=self.context['request'])
             send_welcome_email_task.delay(user_id=user.id)
-            send_email_verification_task(user_id=user.id, reset_link=reset_link)
+            send_email_verification_task(user_id=user.id, verification_link=verification_link)
 
             # send_password_reset_link_task.delay(user_id=user.id, reset_link=reset_link, password=password)
 
+            user.is_active = False
+            user.save(update_fields=['is_active'])
             return user
 
         except Role.DoesNotExist:

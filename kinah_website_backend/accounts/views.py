@@ -1,5 +1,7 @@
-from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
+from django.db.models.functions import ExtractMonth
+from django.utils import timezone
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import viewsets, generics, permissions, status
 from rest_framework.views import APIView
@@ -13,15 +15,19 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
-from django.db.models.functions import ExtractMonth
 from datetime import date
 
+from finance.models import Address, Order, Payment
+from finance.serializers import OrderListSerializer
+from logistics.models import Dispatch
+from logistics.serializers import DispatchListDetailSerializer
+
+from .models import Role, RolePermission, OTPRecord
 from .permissions import (
     IsAdminUser, RoleBasedPermission,
     IsStaffUser, CanCreateAccount,
     CanManageResource, CanDispatchDriver
 )
-from .models import Role, RolePermission
 from .serializers import (
     UserSerializer,
     RoleSerializer,
@@ -29,7 +35,7 @@ from .serializers import (
     SetPasswordSerializer
 )
 from .utils import build_password_reset_link, get_monthly_data
-from .tasks import send_password_reset_link_task
+from .tasks import send_password_reset_link_task, send_user_verification_otp_task
 
 User = get_user_model()
 
@@ -180,11 +186,161 @@ class UserViewSet(BaseModelViewSet):
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated]) # , permission_classes=[IsAuthenticated]
     def me(self, request):
-        serializer = self.get_serializer(request.user)
+        user = request.user
+        serializer = self.get_serializer(user)
+        response_data = serializer.data
+        role_name = getattr(user.role, "role_name", None)
+
+        INFO_MAP = {
+            'shipping_address': ['buyer', 'dispatch'],
+            'billing_address': ['buyer'],
+            'customer_orders': ['buyer'],
+            'dispatched_orders': ['dispatch'],
+        }
+
+        # Address
+        if role_name in INFO_MAP.get('shipping_address', []):
+            shipping_address = Address.objects.filter(user=user, address_type='shipping').order_by('-created_at').first()
+
+            if shipping_address:
+                address_data = {
+                    'address_type': shipping_address.address_type,
+                    'street_address': shipping_address.street_address,
+                    'apartment_address' : shipping_address.apartment_address,
+                    'city' : shipping_address.city,
+                    'state' : shipping_address.state,
+                    'postal_code' : shipping_address.postal_code,
+                    'country' : shipping_address.country,
+                }
+
+                response_data['shipping_address'] = address_data if address_data else None
+
+        if role_name in INFO_MAP.get('billing_address', []):
+            billing_address = Address.objects.filter(user=user, address_type='billing').order_by('-created_at').first()
+
+            if billing_address:
+                address_data = {
+                    'address_type': billing_address.address_type,
+                    'street_address': billing_address.street_address,
+                    'apartment_address' : billing_address.apartment_address,
+                    'city' : billing_address.city,
+                    'state' : billing_address.state,
+                    'postal_code' : billing_address.postal_code,
+                    'country' : billing_address.country,
+                }
+
+                response_data['billing_address'] = address_data if address_data else None
+
+        if role_name in INFO_MAP.get('customer_orders', []):
+            # Get order history associated to buyer email
+            orders = Order.objects.filter(
+                Q(user=user) |
+                Q(customer_email=user.email) 
+            ).distinct().order_by("-created_at").prefetch_related('payments')
+
+            serializer = OrderListSerializer(orders, many=True)
+            response_data['orders'] = serializer.data
+
+        if role_name in INFO_MAP.get('dispatched_orders', []):
+            # -- Dispatcher Orders
+            dispatch = Dispatch.objects.filter(driver=user).select_related('company_address', 'vehicle').first()
+            orders = Order.objects.filter(dispatch=dispatch).distinct().order_by("-created_at")
+            delivered_orders = orders.filter(status='delivered')
+            shipped_orders = orders.filter(status='shipped')
+            serializer = DispatchListDetailSerializer(dispatch)
+
+            response_data['dispatch'] = serializer.data
+            serializer = OrderListSerializer(delivered_orders, many=True)
+            response_data['delivered_orders'] = serializer.data
+            serializer = OrderListSerializer(shipped_orders, many=True)
+            response_data['shipped_orders'] = serializer.data
+
         return self.success(
             message='User retrieved succesfully',
-            data=serializer.data,
+            data=response_data,
             code=200
+        )
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny]) # , permission_classes=[IsAuthenticated]
+    def request_otp(self, request, pk=None):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.contrib.auth.hashers import make_password
+        from django.utils.http import urlsafe_base64_decode
+        from django.utils.encoding import force_str
+
+        uid = request.data.get('uidb64')
+        token = request.data.get('token')
+        
+        try:
+            uid = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return self.failure(
+                message='Link is invalid or expired'
+            )
+
+        # check if token is valid
+        if not default_token_generator.check_token(user, token):
+            return self.failure(
+                message='Link is invalid or expired'
+            )
+        
+        pin = self.generate_cancel_pin()
+
+        # save hashed pin to database
+        otp = OTPRecord.objects.create(
+            otp=make_password(pin),
+            order=user,
+            event='verify'
+        )
+
+        send_user_verification_otp_task.delay(user.id, pin)
+
+        return self.success(
+            message="User verification pin sent to email successfully"
+        )
+
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny]) # , permission_classes=[IsAuthenticated]
+    def verify_user(self, request, pk=None):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_decode
+        from django.utils.encoding import force_str
+
+        uid = request.data.get('uidb64')
+        token = request.data.get('token')
+        otp = request.data.get('otp')
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return self.failure(
+                message='Link is invalid or expired'
+            )
+        
+        if not otp:
+            return self.failure(
+                message='Otp is required to complete this action',
+                code=400
+            )
+
+        # check if token is valid
+        if not default_token_generator.check_token(user, token):
+            return self.failure(
+                message='Link is invalid or expired'
+            )
+        
+        is_valid = self.verify_user_otp(user, otp)
+
+        if not is_valid:
+            return self.failure(
+                message='OTP not valid'
+            )
+        user.is_active = True
+        user.save()
+
+        return self.success(
+            message='Email verification successful',
         )
     
     @action(detail=True, methods=['get'], permission_classes=[IsStaffUser]) # , permission_classes=[IsAuthenticated]
@@ -218,6 +374,28 @@ class UserViewSet(BaseModelViewSet):
             message='Password has been set successfully.',
             code=200
         )
+        
+    def generate_cancel_pin(self):
+        import random
+        return str(random.randint(100000, 999999))
+    
+    def verify_user_otp(self, user, pin):
+        from datetime import timedelta
+        from django.contrib.auth.hashers import check_password
+
+        otp_record = OTPRecord.objects.filter(user=user).order_by('-created_at').first()
+
+        if not otp_record:
+            return False
+
+        expiry_time = otp_record.created_at + timedelta(minutes=2)
+
+        if timezone.now() > expiry_time:
+            return False
+
+        # compare raw pin with saved hashed pin
+        return check_password(pin, otp_record.otp)
+
 
 
 class RoleViewSet(BaseModelViewSet):

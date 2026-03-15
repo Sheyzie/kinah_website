@@ -24,6 +24,15 @@ def build_password_reset_link(user, request):
     reset_link = request.build_absolute_uri(f"/accounts/set-password/{uid}/{token}/")
     return reset_link
 
+def build_user_verification_link(user, request):
+    """
+    Build the password reset URL using the user's ID and token.
+    """
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    reset_link = request.build_absolute_uri(f"/accounts/verify/{uid}/{token}/")
+    return reset_link
+
 
 class EmailService:
 
@@ -154,7 +163,7 @@ class EmailService:
         # Send the email using the helper function
         return self.send_email(subject, text_message, html_message)
 
-    def send_email_verification_link(self, reset_link):
+    def send_email_verification_link(self, verification_link):
         """
         Send email verification link to user via email.
         """
@@ -169,7 +178,7 @@ class EmailService:
         Please proceed with your email verification process.
         
         Please click the link below to verify your email:
-        {reset_link}
+        {verification_link}
 
         This link will expire in 15 minutes for security reasons.
 
@@ -234,9 +243,9 @@ class EmailService:
                     <h2>Hello {self.user.first_name},</h2>
                     <p>Please proceed with your email verification process.</p>
                     <p>Please click the link below to verify your email:</p>
-                    <a href="{reset_link}" class="button">Set Password</a>
+                    <a href="{verification_link}" class="button">Verify</a>
                     <p>Or copy and paste this link into your browser:</p>
-                    <p style="word-break: break-all; color: #667eea;">{reset_link}</p>
+                    <p style="word-break: break-all; color: #667eea;">{verification_link}</p>
                     <p><strong>This link will expire in 15 minutes for security reasons.</strong></p>
                     <p>If you didn't request this, please ignore this email.</p>
                 </div>
@@ -721,6 +730,127 @@ class EmailService:
         </html>
         """
 
+        return self.send_email(subject, text_message, html_message)
+   
+    def send_user_otp(self, pin):
+        subject = "Kinah Verification Code"
+        text_message = f"""
+        Hello,
+
+        We received a request to verify your action on Kinah.
+
+        Your verification code is:
+
+        {" ".join(pin)}
+
+        This code will expire in 2 minutes.
+
+        Enter this code in the verification page to continue.
+
+        If you did not request this code, please ignore this email and no action will be taken on your account.
+
+        Best regards,
+        The Kinah Team
+        """
+
+
+        html_message = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }}
+
+        .container {{
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+        }}
+
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }}
+
+        .content {{
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }}
+
+        .pin-box {{
+            background: white;
+            border: 1px solid #ddd;
+            padding: 20px;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 6px;
+            color: #667eea;
+            margin: 25px 0;
+            border-radius: 6px;
+        }}
+
+        .footer {{
+            text-align: center;
+            margin-top: 20px;
+            color: #777;
+            font-size: 12px;
+        }}
+
+        </style>
+        </head>
+
+        <body>
+
+        <div class="container">
+
+        <div class="header">
+        <h1>Kinah</h1>
+        <p>Fast . Reliable . Easy</p>
+        </div>
+
+        <div class="content">
+
+        <h2>Verification Code</h2>
+
+        <p>We received a request to verify an action on your Kinah account.</p>
+
+        <p>Please use the verification code below to continue:</p>
+
+        <div class="pin-box">
+        {" ".join(pin)}
+        </div>
+
+        <p><strong>This code will expire in 2 minutes.</strong></p>
+
+        <p>Enter this code on the verification page to proceed.</p>
+
+        <p>If you did not request this code, you can safely ignore this email.</p>
+
+        </div>
+
+        <div class="footer">
+
+        <p>Best regards,<br>The Kinah Team</p>
+
+        <p>&copy; 2025 Kinah. All rights reserved.</p>
+
+        </div>
+
+        </div>
+
+        </body>
+        </html>
+        """
         return self.send_email(subject, text_message, html_message)
 
 def get_monthly_data(year):
