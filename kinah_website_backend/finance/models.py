@@ -25,6 +25,7 @@ class Address(models.Model):
     ADDRESS_TYPE = (
         ('shipping', 'Shipping'),
         ('billing', 'Billing'),
+        ('home', 'Home'),
     )
 
     user = models.ForeignKey(
@@ -52,6 +53,11 @@ class Address(models.Model):
 
     def __str__(self):
         return f'{self.full_name} - {self.street_address}'
+    
+    def save(self, *args, **kwargs):
+        if self.address_type == 'home' and self.user.role.role_name != 'staff':
+            raise ValidationError(f'Invalid address type for role {self.user.role.role_name}')
+        return super().save(*args, **kwargs)
 
 
 class Order(models.Model):

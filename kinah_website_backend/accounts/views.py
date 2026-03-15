@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from rest_framework import viewsets, generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -32,7 +32,8 @@ from .serializers import (
     UserSerializer,
     RoleSerializer,
     RolePermissionSerializer,
-    SetPasswordSerializer
+    SetPasswordSerializer,
+    StaffUserSerializer,
 )
 from .utils import build_password_reset_link, get_monthly_data
 from .tasks import send_password_reset_link_task, send_user_verification_otp_task
@@ -140,7 +141,7 @@ class BaseModelViewSet(viewsets.ModelViewSet):
 class UserViewSet(BaseModelViewSet):
     serializer_class = UserSerializer
     queryset = User.objects.all()
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [SearchFilter, OrderingFilter]
     permission_classes = [RoleBasedPermission]
     throttle_classes = [UserRateThrottle]
@@ -374,7 +375,11 @@ class UserViewSet(BaseModelViewSet):
             message='Password has been set successfully.',
             code=200
         )
-        
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdminUser], serializer_class=StaffUserSerializer) # , permission_classes=[IsAuthenticated]
+    def create_staff(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def generate_cancel_pin(self):
         import random
         return str(random.randint(100000, 999999))

@@ -239,7 +239,7 @@ class IsBuyer(permissions.BasePermission):
     """
     Permission to check if user is a buyer
     """
-    message = "You don't have permission to manage this resource."
+    message = "You don't have permission to carry out this action."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -396,27 +396,27 @@ class DefaultPermission:
             {
                 'model': 'address',
                 'app_label': 'finance',
-                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+                'perms': ['can_read', 'can_update', 'can_delete']
             },
             {
                 'model': 'order',
                 'app_label': 'finance',
-                'perms': ['can_read', 'can_update', 'can_create', 'can_delete', 'can_dispatch_driver']
+                'perms': ['can_read', 'can_update', 'can_dispatch_driver']
             },
             {
                 'model': 'product',
                 'app_label': 'products',
-                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+                'perms': ['can_read', 'can_update']
             },
             {
                 'model': 'productstype',
                 'app_label': 'products',
-                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+                'perms': ['can_read', 'can_update']
             },
             {
                 'model': 'productscategory',
                 'app_label': 'products',
-                'perms': ['can_read', 'can_update', 'can_create', 'can_delete']
+                'perms': ['can_read', 'can_update']
             },
         ]
 

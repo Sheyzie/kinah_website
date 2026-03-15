@@ -102,7 +102,6 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
         """
         logger.info('Validating dispatch data')
         DRIVER_ALLOWED_KEYS = {'first_name', 'last_name', 'email', 'phone', 'password'}
-        # TODO: Validate photo to not contain malicious content
 
         ADDRESS_ALLOWED_KEYS = [
             'full_name', 'street_address', 
@@ -184,25 +183,6 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"vehicle": f"Missing fields: {missing}"}
             )
-
-        
-        # for key in DRIVER_ALLOWED_KEYS:
-        #     if key not in driver.keys():
-        #         raise serializers.ValidationError(
-        #             {"driver": "Driver data is incomplete."}
-        #         )
-            
-        # for key in ADDRESS_ALLOWED_KEYS:
-        #     if key not in company_address.keys():
-        #         raise serializers.ValidationError(
-        #             {"company_address": "Company address data is incomplete."}
-        #         )
-            
-        # for key in VEHICLE_ALLOWED_KEYS:
-        #     if key not in vehicle.keys():
-        #         raise serializers.ValidationError(
-        #             {"vehicle": "Vehicle data is incomplete."}
-        #         )
         
         return data
 

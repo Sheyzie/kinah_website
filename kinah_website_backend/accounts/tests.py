@@ -419,10 +419,54 @@ class UserAPITestCase(BaseAPITest):
 
         url = reverse('users-list') + 'me/'
         response = self.client.get(url, headers=headers)
-        printInJSON(response.data)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
+
+    def test_register_staff_user(self):
+        token = self.get_auth_token(
+            email=self.superadmin.email,
+            password='superAdminUser'
+        )
+
+        headers = {
+            'Authorization': f'Bearer {token}'
+        }
+
+        url = reverse('users-list') + 'create_staff/'
+        data = USER_DATA["register"].copy()
+        data['password'] = 'John6b4pt15t'
+        data['email'] = 'staff@mail.com'
+        data['phone'] = '+2348156341122'
+
+        # pass in role_id
+        data['role_id'] = self.role.id
+
+        # staff address
+        data['address'] = {
+            'full_name': 'Test Staff', 
+            'street_address': '123 Main st', 
+            'apartment_address': 'Block B', 
+            'city': 'Ikeja', 
+            'state': 'Lagos',
+            'postal_code': '100262',
+            'country': 'Nigeria'
+        }
+
+        response = self.client.post(url, data, headers=headers, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        user = User.objects.get(email='staff@mail.com')
+        self.assertEqual(user.first_name, data['first_name'])
+
+        # check role 
+        user.refresh_from_db()
+        self.assertEqual(user.role.role_name, 'staff')
+
+        # check default permissions
+        self.assertGreater(RolePermission.objects.count(), 0)
 
 
 class RolePermissionAPITestCase(BaseAPITest):

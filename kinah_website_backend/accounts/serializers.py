@@ -7,6 +7,10 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 
+from typing import Any
+
+from finance.models import Address
+
 from .models import Role, RolePermission
 from .utils import build_user_verification_link
 from .tasks import send_welcome_email_task, send_email_verification_task
@@ -221,3 +225,114 @@ class SetPasswordSerializer(serializers.Serializer):
         self.user.save()
         return self.user
 
+
+class StaffUserSerializer(serializers.ModelSerializer):
+    role_id = serializers.PrimaryKeyRelatedField(
+        queryset=Role.objects.all(),
+        source='role',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    role = serializers.SerializerMethodField()
+    address = serializers.DictField(write_only=True)
+    password = serializers.CharField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'first_name', 'last_name', 'email', 'phone',
+            'role', 'role_id', 'photo','address',
+            'is_active', 'is_staff', 'created_at', 'updated_at', 'password'
+        ]
+
+    def get_role(self, obj):
+        return {
+            "role_id": obj.role.id,
+            "role_name": obj.role.role_name,
+            "color": obj.role.color
+        }
+    
+    def validate(self, attrs):
+        ADDRESS_ALLOWED_KEYS = [
+            'full_name', 'street_address', 
+            'apartment_address', 'city', 'state', 'postal_code',
+            'country'
+        ]
+
+        address_data = attrs.get('address', None)
+
+        if address_data is None:
+            raise serializers.ValidationError(
+                {"company_address": "Company address is required."}
+            )
+        
+        if not isinstance(address_data, dict):
+            raise serializers.ValidationError(
+                {"company_address": "Company address data should be a dictionary."}
+            )
+        
+        address: dict[str, Any] = address_data
+
+        missing = ADDRESS_ALLOWED_KEYS - address.keys()
+
+        if missing:
+            raise serializers.ValidationError(
+                {"company_address": f"Missing fields: {missing}"}
+            )
+
+        return super().validate(attrs)
+        
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        role = validated_data.pop('role', None)
+        is_staff = validated_data.pop('is_staff', None)
+        is_superuser = validated_data.pop('is_superuser', None)
+        address_data = validated_data.pop('address', None)
+
+        if password is None:
+            raise  serializers.ValidationError('Password is required')
+        
+        if not address_data:
+            raise serializers.ValidationError('Address data is required')
+
+
+        user = User.objects.create_staffuser(**validated_data)
+        user.set_password(password)
+        user.save()
+    
+        address = self.create_staff_address(user, address_data)
+
+        # Send verification link
+        verification_link = build_user_verification_link(user=user, request=self.context['request'])
+        send_welcome_email_task.delay(user_id=user.id)
+        send_email_verification_task.delay(user_id=user.id, verification_link=verification_link)
+
+        # send_password_reset_link_task.delay(user_id=user.id, reset_link=reset_link, password=password)
+
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+
+        return user
+    
+    def create_staff_address(self, user, company_address: dict[str, Any]):
+        if not isinstance(user, User):
+            raise serializers.ValidationError('Staff in address data is not a User instance')
+        
+        ALLOWED_KEYS = [
+            'full_name', 'street_address', 
+            'apartment_address', 'city', 'state', 'postal_code',
+            'country'
+        ]
+
+        address_data = {}
+        for key, value in company_address.items():
+            if key in ALLOWED_KEYS and value:
+                address_data[key] = value
+            
+        address_data['address_type'] = 'home'
+        address = Address.objects.create(user=user, **address_data)
+
+        return address
+  

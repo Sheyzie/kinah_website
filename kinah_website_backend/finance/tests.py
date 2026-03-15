@@ -456,7 +456,7 @@ class EcommerceAPITestCase(APITestCase):
         }
 
         response = self.client.post(url, data, format='json')
-        printInJSON(response.data)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.status, 'cancelled')
