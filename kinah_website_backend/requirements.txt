@@ -8,13 +8,17 @@ attrs==25.4.0
 billiard==4.2.4
 celery==5.6.2
 certifi==2026.2.25
+cffi==2.0.0
 charset-normalizer==3.4.5
 click==8.3.1
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 cron-descriptor==1.4.5
+cryptography==46.0.5
+dj-rest-auth==7.2.0
 Django==5.2.6
+django-allauth==65.15.0
 django-celery-beat==2.9.0
 django-cors-headers==4.9.0
 django-filter==25.2
@@ -40,6 +44,7 @@ phonenumbers==9.0.25
 pillow==12.1.1
 prompt_toolkit==3.0.52
 propcache==0.4.1
+pycparser==3.0
 PyJWT==2.11.0
 python-crontab==3.3.0
 python-dateutil==2.9.0.post0

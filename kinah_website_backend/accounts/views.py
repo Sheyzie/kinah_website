@@ -18,6 +18,10 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from datetime import date
 import logging
 
+# google sign in
+from dj_rest_auth.registration.views import SocialLoginView
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+
 from finance.models import Address, Order, Payment
 from finance.serializers import OrderListSerializer
 from logistics.models import Dispatch
@@ -43,6 +47,10 @@ logger = logging.getLogger(__name__)
 
 
 User = get_user_model()
+
+
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
 
 
 class BaseModelViewSet(viewsets.ModelViewSet):

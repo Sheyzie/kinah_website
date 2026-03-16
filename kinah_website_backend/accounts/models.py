@@ -164,7 +164,7 @@ class RolePermission(models.Model):
 class User(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = None  # Remove the username field
-    email = models.CharField(max_length=100, unique=True)
+    email = models.EmailField(max_length=100, unique=True)
     phone = PhoneNumberField(unique=True)
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='users', null=True, blank=True)
     photo = models.ImageField(upload_to='users/photos/', null=True, blank=True)

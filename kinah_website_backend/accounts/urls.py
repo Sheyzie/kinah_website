@@ -9,7 +9,10 @@ from .views import (
     RolePermissionViewSet,
     password_reset_request,
     LogoutView,
-    LogoutAllView
+    LogoutAllView,
+
+    # login with google
+    GoogleLogin
 )
 
 from .custom_token_view import CustomTokenObtainPairView
@@ -35,7 +38,10 @@ urlpatterns = [
     path('roles/specific-user-counts/', views.specific_role_user_counts, name='specific-role-user-counts'),
     path('content-types/', views.get_content_types, name='content_types'),
     path('permission-options/', views.get_permission_options, name='permission_options'),
-    path('dashboard/', views.dashboard, name='dashboard')
+    path('dashboard/', views.dashboard, name='dashboard'),
+
+    # Login with google for token verification (used instead of redirect)
+    path("auth/google/", GoogleLogin.as_view(), name="google_login")
 ]
 
 # Add router URLs
