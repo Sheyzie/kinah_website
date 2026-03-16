@@ -267,7 +267,7 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
             if key in ALLOWED_KEYS and value:
                 address_data[key] = value
             
-        address_data['address_type'] = 'shipping'
+        address_data['address_type'] = 'office'
         address = Address.objects.create(user=driver, **address_data)
 
         return address

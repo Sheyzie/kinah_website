@@ -18,12 +18,14 @@ Django==5.2.6
 django-celery-beat==2.9.0
 django-cors-headers==4.9.0
 django-filter==25.2
+django-phonenumber-field==8.4.0
 django-redis==6.0.0
 django-timezone-field==7.2.1
 django_celery_results==2.6.0
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.29.0
+Faker==40.11.0
 frozenlist==1.8.0
 gunicorn==25.1.0
 idna==3.11
@@ -34,6 +36,7 @@ kombu==5.6.2
 multidict==6.7.1
 mysqlclient==2.2.8
 packaging==26.0
+phonenumbers==9.0.25
 pillow==12.1.1
 prompt_toolkit==3.0.52
 propcache==0.4.1

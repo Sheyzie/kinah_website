@@ -136,7 +136,7 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(Dispatch.objects.count(), 1)
 
     def test_get_dispatch(self):
-        address = Address.objects.create(**self.dispatch_data['company_address'])
+        address = Address.objects.create(user=self.user, **self.dispatch_data['company_address'])
         vehicle = Vehicle.objects.create(**self.vehicle_data)
         dispatch = Dispatch.objects.create(
             driver=self.user, 
@@ -151,7 +151,7 @@ class EcommerceAPITestCase(APITestCase):
         self.assertIn('data', response.data)
 
     def test_update_dispatch(self):
-        address = Address.objects.create(**self.dispatch_data['company_address'])
+        address = Address.objects.create(user=self.user, **self.dispatch_data['company_address'])
         vehicle = Vehicle.objects.create(**self.vehicle_data)
         dispatch = Dispatch.objects.create(
             driver=self.user, 
@@ -176,7 +176,7 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_delete_dispatch(self):
-        address = Address.objects.create(**self.dispatch_data['company_address'])
+        address = Address.objects.create(user=self.user, **self.dispatch_data['company_address'])
         vehicle = Vehicle.objects.create(**self.vehicle_data)
         dispatch = Dispatch.objects.create(
             driver=self.user, 

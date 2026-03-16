@@ -27,6 +27,7 @@ class EcommerceAPITestCase(APITestCase):
             last_name='User', 
             phone='+2348012345678'
         )
+
         self.user2 = User.objects.create_user(
             email='testuser2@example.com', 
             password='password123', 
@@ -95,8 +96,8 @@ class EcommerceAPITestCase(APITestCase):
     def test_create_address(self):
         url = reverse('address-list')
         data = self.address_data
-
         response = self.client.post(url, data, format='json')
+        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Address.objects.count(), 1)
 
@@ -110,6 +111,7 @@ class EcommerceAPITestCase(APITestCase):
 
     def test_update_address(self):
         address = Address.objects.create(user=self.user, **self.address_data)
+
         url = reverse('address-detail', kwargs={'pk': address.id})
 
         data = {
@@ -122,7 +124,7 @@ class EcommerceAPITestCase(APITestCase):
         }
 
         response = self.client.put(url, data, format='json')
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         address.refresh_from_db()
         self.assertEqual(address.city, 'Abuja')
@@ -152,8 +154,7 @@ class EcommerceAPITestCase(APITestCase):
     def test_list_orders(self):
         Order.objects.create(
             user=self.user,
-            payment_method="paystack",
-            order_number="ORD-001"
+            payment_method="paystack"
         )
         url = reverse('order-list')
         response = self.client.get(url)
@@ -164,8 +165,7 @@ class EcommerceAPITestCase(APITestCase):
     def test_get_order_detail(self):
         order = Order.objects.create(
             user=self.user,
-            payment_method="paystack",
-            order_number="ORD-001"
+            payment_method="paystack"
         )
         url = reverse('order-detail', kwargs={'pk': order.id})
         response = self.client.get(url)
@@ -177,7 +177,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=self.user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing'
         )
         url = reverse('order-detail', kwargs={'pk': order.id})
@@ -214,7 +213,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=admin_user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing'
         )
         url = reverse('order-detail', kwargs={'pk': order.id})
@@ -251,7 +249,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=admin_user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing'
         )
 
@@ -293,7 +290,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=self.user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing'
         )
         url = reverse('order-detail', kwargs={'pk': order.id})
@@ -317,7 +313,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=admin_user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='confirmed'
         )
 
@@ -360,7 +355,7 @@ class EcommerceAPITestCase(APITestCase):
             "company_name": 'Test Driver Corp'
         }
 
-        address = Address.objects.create(**dispatch_data['company_address'])
+        address = Address.objects.create(user=self.user, **dispatch_data['company_address'])
         vehicle = Vehicle.objects.create(**vehicle_data)
         dispatch = Dispatch.objects.create(
             driver=self.user, 
@@ -394,7 +389,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=admin_user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing',
             customer_email=self.user.email
         )
@@ -431,7 +425,6 @@ class EcommerceAPITestCase(APITestCase):
         order = Order.objects.create(
             user=admin_user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing',
             customer_email=self.user.email
         )
@@ -827,7 +820,6 @@ class PaystackWebhookAPITestCase(APITestCase):
 
         order = Order.objects.create(
             payment_method="paystack",
-            order_number="ORD-001"
         )
 
         # Create category and type

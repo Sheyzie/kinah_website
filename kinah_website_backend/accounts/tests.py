@@ -10,12 +10,14 @@ from django.urls import reverse
 from django.core import mail
 from unittest.mock import patch, MagicMock
 
-from finance.models import Order
+from finance.models import Order, Address
 from .utils import printInJSON
 
 from .test_data import ROLE_DATA, USER_DATA, USER_PASSWORD_DATA, ROLE_PERMISSION_DATA
 from .models import Role, RolePermission, OTPRecord
 
+import logging
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -64,6 +66,7 @@ class BaseAPITest(APITestCase):
 
 class RoleAPITestCase(BaseAPITest):
     def setUp(self):
+        logger.info('Testing Role APIs')
         # createsuperuser
         superuser = USER_DATA.get('superuser')
         user = USER_DATA.get('register')
@@ -78,7 +81,6 @@ class RoleAPITestCase(BaseAPITest):
         )
 
     def test_create_role(self):
-
         token = self.get_auth_token(
             email=self.superadmin.email,
             password='superAdminUser'
@@ -199,6 +201,7 @@ class RoleAPITestCase(BaseAPITest):
 
 class UserAPITestCase(BaseAPITest):
     def setUp(self):
+        logger.info('Testing User APIs')
         # createsuperuser
         superuser = USER_DATA.get('superuser')
         superuser['password'] = 'superAdminUser'
@@ -241,7 +244,7 @@ class UserAPITestCase(BaseAPITest):
         data['phone'] = '+2348112312345'
 
         # pass in role_id
-        data['role_id'] = self.role.id
+        # data['role_id'] = self.role.id
 
         response = self.client.post(url, data, headers=headers, format='multipart')
 
@@ -412,9 +415,28 @@ class UserAPITestCase(BaseAPITest):
         order = Order.objects.create(
             user=self.user,
             payment_method="paystack",
-            order_number="ORD-001",
             status='processing',
             customer_email=self.user.email
+        )
+
+        address = Address.objects.create(
+            user=self.user,
+            address_type="shipping",
+            full_name="John Doe",
+            street_address="123 Main St",
+            city="Lagos",
+            state="Lagos",
+            country="Nigeria"
+        )
+
+        address = Address.objects.create(
+            user=self.user,
+            address_type="billing",
+            full_name="John Doe",
+            street_address="123 Main St",
+            city="Lagos",
+            state="Lagos",
+            country="Nigeria"
         )
 
         url = reverse('users-list') + 'me/'
@@ -472,7 +494,7 @@ class UserAPITestCase(BaseAPITest):
 class RolePermissionAPITestCase(BaseAPITest):
 
     def setUp(self):
-
+        logger.info('Testing Role Permission APIs')
         # createsuperuser
         superuser = USER_DATA.get('superuser')
 
@@ -657,6 +679,8 @@ class RolePermissionAPITestCase(BaseAPITest):
 
 class APIThrottlingTest(BaseAPITest):
     def setUp(self):
+        logger.info('Testing Throttling APIs')
+
         # createsuperuser
         superuser = USER_DATA.get('superuser')
 
@@ -693,6 +717,7 @@ class AuthenticationTestCase(BaseAPITest):
     """Test suite for authentication flow"""
 
     def setUp(self):
+        logger.info('Testing Authentication APIs')
         """Set up test data"""
         self.client = APIClient()
 
@@ -980,6 +1005,7 @@ class RoleBasedAccessTestCase(BaseAPITest):
 
     def setUp(self):
         """Set up test data with different roles"""
+        logger.info('Testing RBAC APIs')
         content_type = ContentType.objects.get_for_model(User)
      
         # Create roles

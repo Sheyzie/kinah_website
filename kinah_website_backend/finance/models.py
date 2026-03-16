@@ -1,7 +1,7 @@
 from django.db import models, transaction
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
-from django.db.models import Sum
+from django.db.models import Sum, Max
 from django.conf import settings
 import uuid
 
@@ -18,6 +18,7 @@ PAYMENT_METHOD = (
     ('bank_tranfer', 'Bank Transfer'),
 )
 
+
 class Address(models.Model):
     '''
     Shipping and billing address model
@@ -26,6 +27,7 @@ class Address(models.Model):
         ('shipping', 'Shipping'),
         ('billing', 'Billing'),
         ('home', 'Home'),
+        ('office', 'Office'),
     )
 
     user = models.ForeignKey(
@@ -55,8 +57,14 @@ class Address(models.Model):
         return f'{self.full_name} - {self.street_address}'
     
     def save(self, *args, **kwargs):
-        if self.address_type == 'home' and self.user.role.role_name != 'staff':
-            raise ValidationError(f'Invalid address type for role {self.user.role.role_name}')
+        role = self.user.role.role_name
+
+        if self.address_type == 'home' and role not in ['staff', 'admin']:
+            raise ValidationError(f'Invalid address type for role {role}')
+
+        if self.address_type == 'office' and role != 'dispatcher':
+            raise ValidationError(f'Invalid address type for role {role}')
+        
         return super().save(*args, **kwargs)
 
 
@@ -106,7 +114,8 @@ class Order(models.Model):
     )
 
     # order details
-    order_number = models.CharField(max_length=50, unique=True)
+    # order_number = models.CharField(max_length=50, unique=True)
+    _order_number = models.BigIntegerField(unique=True, editable=False)
     status = models.CharField(max_length=20, choices=ORDER_STATUS, default='pending')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD)
@@ -158,16 +167,14 @@ class Order(models.Model):
         return f'Order #{self.order_number}'
     
     def save(self, *args, **kwargs):
-        if not self.order_number:
-            # generate unique order number
-            last_order = Order.objects.order_by('-id').first()
-            if last_order:
-                last_id = last_order.id
-                new_id = last_id + 1
-            else:
-                new_id = 1
-            self.order_number = f'ORD-{new_id:06d}'
+        if not self._order_number:
+            last = Order.objects.aggregate(Max('_order_number'))['_order_number__max']
+            self._order_number = (last or 0) + 1
         return super().save(*args, **kwargs)
+    
+    @property
+    def order_number(self):
+        return f'ORD-{self._order_number:06d}'
     
     @property
     def subtotal(self):

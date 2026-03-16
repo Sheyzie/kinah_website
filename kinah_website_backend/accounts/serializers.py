@@ -15,6 +15,8 @@ from .models import Role, RolePermission
 from .utils import build_user_verification_link
 from .tasks import send_welcome_email_task, send_email_verification_task
 
+import logging
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -26,6 +28,7 @@ class RoleSerializer(serializers.ModelSerializer):
         fields = ['id', 'role_name', 'color', 'is_admin', 'is_editable', 'is_default', 'is_active']
 
     def update(self, instance, validated_data):
+        logger.debug('Updating role')
         user = self.context['request'].user
         if not instance.is_editable:
             if not user.is_superuser or not (hasattr(user, 'role') and  user.role.is_admin):
@@ -69,6 +72,7 @@ class RolePermissionSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+        logger.debug('Creating role permission')
         content_types = validated_data.pop('content_type_ids', None)
 
         if content_types is None or len(content_types) == 0:
@@ -91,6 +95,7 @@ class RolePermissionSerializer(serializers.ModelSerializer):
         return permissions[0]
 
     def update(self, instance, validated_data):
+        logger.debug('Updating role permission')
         content_types = validated_data.pop('content_type_ids', None)
         role = instance.role
 
@@ -163,6 +168,8 @@ class UserSerializer(serializers.ModelSerializer):
         
 
     def create(self, validated_data):
+        logger.debug('Creating user')
+
         password = validated_data.pop('password', None)
         role = validated_data.pop('role', None)
         is_staff = validated_data.pop('is_staff', None)
@@ -194,6 +201,7 @@ class UserSerializer(serializers.ModelSerializer):
             raise  serializers.ValidationError('Role ID is required')
 
     def update(self, instance, validated_data):
+        logger.debug('Updating user')
         validated_data.pop('password', None)
         is_staff = validated_data.pop('is_staff', None)
         is_superuser = validated_data.pop('is_superuser', None)
@@ -283,8 +291,9 @@ class StaffUserSerializer(serializers.ModelSerializer):
 
         return super().validate(attrs)
         
-
     def create(self, validated_data):
+        logger.debug('Creating staff user')
+
         password = validated_data.pop('password', None)
         role = validated_data.pop('role', None)
         is_staff = validated_data.pop('is_staff', None)

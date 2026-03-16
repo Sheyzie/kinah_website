@@ -29,7 +29,7 @@ class OrderItemAdmin(admin.ModelAdmin):
 
 @admin.register(OrderStatusHistory)
 class OrderStatusHistoryAdmin(admin.ModelAdmin):
-    list_display = ['order__order_number', 'status', 'created_by__email']
+    list_display = ['order__id', 'status', 'created_by__email']
     list_filter = ['status']
     search_fields = ['-created_at']
 
@@ -43,6 +43,6 @@ class CouponAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ['transaction_id', 'order__order_number', 'amount', 'payment_method', 'status']
+    list_display = ['transaction_id', 'amount', 'payment_method', 'status']
     list_filter = ['payment_method', 'status']
     search_fields = ['-created_at', 'transaction_id', 'payment_method']

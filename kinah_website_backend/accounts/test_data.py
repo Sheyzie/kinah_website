@@ -1,6 +1,6 @@
 ROLE_DATA = {
     "create": {
-        "role_name": "Manager",
+        "role_name": "manager",
         "color": "#FF5733",
         "is_admin": True,
         "is_editable": True,
@@ -8,7 +8,7 @@ ROLE_DATA = {
         "is_active": False
     },
     "update": {
-        "role_name": "Senior Manager",
+        "role_name": "senior_manager",
         "color": "#33FF57",
         "is_admin": True,
         "is_editable": True,

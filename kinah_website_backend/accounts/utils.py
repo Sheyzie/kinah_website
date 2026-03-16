@@ -19,6 +19,7 @@ def build_password_reset_link(user, request):
     """
     Build the password reset URL using the user's ID and token.
     """
+    logger.debug('building password reset link')
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     reset_link = request.build_absolute_uri(f"/accounts/set-password/{uid}/{token}/")
@@ -28,6 +29,7 @@ def build_user_verification_link(user, request):
     """
     Build the password reset URL using the user's ID and token.
     """
+    logger.debug('building email verification link')
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     reset_link = request.build_absolute_uri(f"/accounts/verify/{uid}/{token}/")

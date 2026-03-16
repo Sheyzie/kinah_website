@@ -2,14 +2,20 @@ from rest_framework import permissions
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class IsAdminUser(permissions.BasePermission):
     """
     Permission check for admin users
     """
+
     message = "You must be an admin to perform this action."
 
     def has_permission(self, request, view):
+        logger.debug('Validating admin user')
+
         if not request.user or not request.user.is_authenticated:
             return False
         
@@ -31,6 +37,8 @@ class IsStaffUser(permissions.BasePermission):
     message = "You must be an admin to perform this action."
 
     def has_permission(self, request, view):
+        logger.debug('Validating staff user')
+
         if not request.user or not request.user.is_authenticated:
             return False
         
@@ -56,6 +64,8 @@ class RoleBasedPermission(permissions.BasePermission):
     message = "You don't have permission to perform this action."
 
     def has_permission(self, request, view):
+        logger.debug('Validating with RBAC')
+
         if not request.user or not request.user.is_authenticated:
             return False
 
@@ -119,6 +129,8 @@ class CanCreateAccount(permissions.BasePermission):
     message = "You don't have permission to create accounts."
 
     def has_permission(self, request, view):
+        logger.debug('Validating account creating permission')
+        
         if not request.user or not request.user.is_authenticated:
             return False
 
@@ -151,6 +163,8 @@ class CanDispatchDriver(permissions.BasePermission):
     message = "You don't have permission to dispatch drivers."
 
     def has_permission(self, request, view):
+        logger.debug('Validating dispatch order permission')
+
         if not request.user or not request.user.is_authenticated:
             return False
 
@@ -220,6 +234,8 @@ class IsDispatcher(permissions.BasePermission):
     message = "You don't have permission to manage this resource."
 
     def has_permission(self, request, view):
+        logger.debug('Validating dispatch user')
+
         if not request.user or not request.user.is_authenticated:
             return False
 
@@ -242,6 +258,8 @@ class IsBuyer(permissions.BasePermission):
     message = "You don't have permission to carry out this action."
 
     def has_permission(self, request, view):
+        logger.debug('Validating buyer user')
+
         if not request.user or not request.user.is_authenticated:
             # TODO: get tracking details and check in order
             return False
@@ -270,7 +288,7 @@ class DefaultPermission:
         self.perms_map = []
 
     def set_buyer_default_perms(self):
-        from .models import RolePermission
+        logger.debug('Setting buyer default permissions')
 
         self.perms_map = [
             {
@@ -313,7 +331,7 @@ class DefaultPermission:
         self._create_perms()
 
     def set_dispatcher_default_perms(self):
-        from .models import RolePermission
+        logger.info('Setting dispatcher default permissions')
 
         self.perms_map = [
             {
@@ -351,6 +369,8 @@ class DefaultPermission:
         self._create_perms()
 
     def set_admin_default_perms(self):
+        logger.info('Setting admin default permissions')
+
         self.perms_map = [
             {
                 'model': 'user',
@@ -387,6 +407,8 @@ class DefaultPermission:
         self._create_perms()
 
     def set_staff_default_perms(self):
+        logger.info('Setting staff default permissions')
+
         self.perms_map = [
             {
                 'model': 'user',
@@ -441,6 +463,11 @@ class DefaultPermission:
                 can_create_account = True if 'can_create_account' in perm_map['perms'] else False
                 can_dispatch_driver = True if 'can_dispatch_driver' in perm_map['perms'] else False
 
+                exist = RolePermission.objects.filter(role=self.role, content_type=content_type).exists()
+
+                if exist:
+                    continue
+                
                 perm = RolePermission.objects.create(
                     role=self.role,
                     content_type=content_type,

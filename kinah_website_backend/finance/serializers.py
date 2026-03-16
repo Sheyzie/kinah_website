@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from django.db import transaction
+from django.contrib.auth import get_user_model
 from logistics.models import Dispatch
 from .tasks import send_order_creation_email_task, send_order_confirmation_email_task
 from .models import (
@@ -45,6 +46,45 @@ class AddressSerializer(serializers.ModelSerializer):
             )
         
         return data
+    
+    def create(self, validated_data):
+        user = validated_data.get('user')
+        address_type = validated_data.get('address_type')
+
+        role = getattr(user, 'role', None)
+
+        if not role:
+            raise serializers.ValidationError(f'Role is required')
+
+        role = role.role_name
+
+        if address_type == 'home' and role not in ['staff', 'admin']:
+            raise serializers.ValidationError(f'Invalid address type for role {role}')
+
+        if address_type == 'office' and role != 'dispatcher':
+            raise serializers.ValidationError(f'Invalid address type for role {role}')
+        
+        
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        address_type = validated_data.get('address_type')
+
+        role = getattr(instance.user, 'role', None)
+
+        if not role:
+            raise serializers.ValidationError(f'Role is required on user instance')
+
+        role = role.role_name
+
+        if address_type == 'home' and role not in ['staff', 'admin']:
+            raise serializers.ValidationError(f'Invalid address type for role {role}')
+
+        if address_type == 'office' and role != 'dispatcher':
+            raise serializers.ValidationError(f'Invalid address type for role {role}')
+        
+
+        return super().update(instance, validated_data)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

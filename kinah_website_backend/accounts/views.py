@@ -16,6 +16,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample
 from datetime import date
+import logging
 
 from finance.models import Address, Order, Payment
 from finance.serializers import OrderListSerializer
@@ -37,6 +38,9 @@ from .serializers import (
 )
 from .utils import build_password_reset_link, get_monthly_data
 from .tasks import send_password_reset_link_task, send_user_verification_otp_task
+
+logger = logging.getLogger(__name__)
+
 
 User = get_user_model()
 
@@ -193,44 +197,26 @@ class UserViewSet(BaseModelViewSet):
         role_name = getattr(user.role, "role_name", None)
 
         INFO_MAP = {
-            'shipping_address': ['buyer', 'dispatch'],
-            'billing_address': ['buyer'],
+            'address': {
+                'shipping': ['buyer'],
+                'billing': ['buyer'],
+                'office': ['dispatcher'],
+                'home': ['staff', 'admin'],
+            },
             'customer_orders': ['buyer'],
-            'dispatched_orders': ['dispatch'],
+            'dispatched_orders': ['dispatcher'],
         }
 
-        # Address
-        if role_name in INFO_MAP.get('shipping_address', []):
-            shipping_address = Address.objects.filter(user=user, address_type='shipping').order_by('-created_at').first()
-
-            if shipping_address:
-                address_data = {
-                    'address_type': shipping_address.address_type,
-                    'street_address': shipping_address.street_address,
-                    'apartment_address' : shipping_address.apartment_address,
-                    'city' : shipping_address.city,
-                    'state' : shipping_address.state,
-                    'postal_code' : shipping_address.postal_code,
-                    'country' : shipping_address.country,
-                }
-
-                response_data['shipping_address'] = address_data if address_data else None
-
-        if role_name in INFO_MAP.get('billing_address', []):
-            billing_address = Address.objects.filter(user=user, address_type='billing').order_by('-created_at').first()
-
-            if billing_address:
-                address_data = {
-                    'address_type': billing_address.address_type,
-                    'street_address': billing_address.street_address,
-                    'apartment_address' : billing_address.apartment_address,
-                    'city' : billing_address.city,
-                    'state' : billing_address.state,
-                    'postal_code' : billing_address.postal_code,
-                    'country' : billing_address.country,
-                }
-
-                response_data['billing_address'] = address_data if address_data else None
+        address_dict = INFO_MAP.get('address', {})
+        for key in address_dict.keys():
+            address = self.get_addresses(
+               user=user,
+               role_name=role_name,
+               address_type=key,
+               role_list=address_dict[key]
+            )
+            if address:
+                response_data[f'{key}_address'] = address
 
         if role_name in INFO_MAP.get('customer_orders', []):
             # Get order history associated to buyer email
@@ -401,7 +387,22 @@ class UserViewSet(BaseModelViewSet):
         # compare raw pin with saved hashed pin
         return check_password(pin, otp_record.otp)
 
+    def get_addresses(self, user, role_name, address_type, role_list=[]):
+        if role_name in role_list:
+            address = Address.objects.filter(user=user, address_type=address_type).order_by('-created_at').first()
+            address_data = None
+            if address:
+                address_data = {
+                    'address_type': address.address_type,
+                    'street_address': address.street_address,
+                    'apartment_address' : address.apartment_address,
+                    'city' : address.city,
+                    'state' : address.state,
+                    'postal_code' : address.postal_code,
+                    'country' : address.country,
+                }
 
+            return address_data
 
 class RoleViewSet(BaseModelViewSet):
     serializer_class = RoleSerializer
