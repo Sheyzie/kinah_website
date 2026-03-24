@@ -16,6 +16,7 @@ export function PrimaryBtn({ text, action }) {
                 backgroundColor: 'var(--primary-color)', // optional: keep same on hover
                 },
                 height: '100%',
+                width: '100%',
                 mx: '10px',
             }}
         >{text}</Button>

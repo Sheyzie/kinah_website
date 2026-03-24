@@ -41,7 +41,7 @@ function Header() {
                 </div>
             </Container>
         </header>
-        <div className='mt-15 w-full bg-amber-800'></div>
+        <div className='mt-15 w-full'></div>
         </>
     )
 }

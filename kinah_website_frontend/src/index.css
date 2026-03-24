@@ -9,6 +9,14 @@
   --outline-color: #A3A3A6;
   --primary-color: #D83467;
   --secondary-color: #333333;
+  --main-text_family: "Inter", sans-serif;
+  --styled-text_family: "Italianno", cursive;
+}
+
+body {
+  background-color: var(--main-background-color);
+  font-family: var(--main-text_family);
+  font-weight: 400;
 }
 
 
