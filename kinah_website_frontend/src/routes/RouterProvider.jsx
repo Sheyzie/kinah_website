@@ -1,40 +1,57 @@
 import { createBrowserRouter, useLoaderData, } from "react-router";
-import { RouterProvider } from "react-router/dom";
 import { useParams } from "react-router";
+import AppLayout from "../components/layouts/AppLayout";
+import HomePage from "../pages/HomePage";
+import LandingPage from "../pages/LandingPage";
+import ProductPage from "../pages/ProductPage";
+import OrderPage from "../pages/OrderPage";
+import CartPage from "../pages/CartPage";
+import CheckoutPage from "../pages/CheckoutPage";
+import UserProfilePage from "../pages/UserProfilePage";
+
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Root,
+    element: <AppLayout />,
     children: [
-      { index: true, Component: Home },
-      { path: "about", Component: About },
-      {
-        path: "auth",
-        middleware: [loggingMiddleware],
-        Component: AuthLayout,
-        children: [
-          { path: "login", Component: Login },
-          { path: "register", Component: Register },
-        ],
-      },
-      {
-        path: "concerts",
-        children: [
-          { index: true, Component: ConcertsHome },
-          { path: ":city", Component: ConcertsCity },
-          { path: "trending", Component: ConcertsTrending },
-        ],
-      },
-      {
-        path: "/teams/:teamId",
-        loader: async ({ params }) => {
-            // params are available in loaders/actions
-            let team = await fetchTeam(params.teamId);
-            return { name: team.name };
-        },
-        Component: Team,
-    },
+      { index: true, element: <HomePage />},
+      { path: "landing-page", element: <LandingPage /> },
+      { path: "products", element: <ProductPage /> },
+      { path: "orders", element: <OrderPage /> },
+      { path: "cart", element: <CartPage /> },
+      { path: "checkout", element: <CheckoutPage /> },
+      { path: "me", element: <UserProfilePage /> },
+      // {
+      //   path: "auth",
+      //   loader: () => {
+      //     loggingMiddleware()
+      //     console.log("Auth route hit");
+      //     return null;
+      //   },
+      //   element: <AuthLayout />,
+      //   children: [
+      //     { path: "login", element: Login },
+      //     { path: "register", element: Register },
+      //   ],
+      // },
+    //   {
+    //     path: "landing-page",
+    //     children: [
+    //       { index: true, Component: ConcertsHome },
+    //       { path: ":city", Component: ConcertsCity },
+    //       { path: "trending", Component: ConcertsTrending },
+    //     ],
+    //   },
+    //   {
+    //     path: "/teams/:teamId",
+    //     loader: async ({ params }) => {
+    //         // params are available in loaders/actions
+    //         let team = await fetchTeam(params.teamId);
+    //         return { name: team.name };
+    //     },
+    //     Component: Team,
+    // },
     ],
   },
 ]);
@@ -58,7 +75,6 @@ async function loggingMiddleware({ request }, next) {
 }
 
 // const userContext = createContext<User>();
-
 async function authMiddleware ({ context }) {
   const userId = getUserId();
 

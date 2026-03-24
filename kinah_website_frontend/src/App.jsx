@@ -5,12 +5,15 @@ import { RouterProvider } from "react-router/dom";
 import { router } from "./routes/RouterProvider"
 import './App.css'
 
+
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
-      <Refine dataProvider={dataProvider}>
+      <Refine 
+        dataProvider={dataProvider}
+        routerProvider={router}
+        >
         {/* Main Component */}
         <RouterProvider router={router} />
       </Refine>

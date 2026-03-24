@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+:root {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+  --main-background-color: #EAEAEA;
+  --outline-color: #A3A3A6;
+  --primary-color: #D83467;
+  --secondary-color: #333333;
+}
+
+
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
