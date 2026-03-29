@@ -4,14 +4,16 @@ import { Stack, Container } from '@mui/material';
 import HeaderMenu from '../HeaderMenu';
 import SearchBox from '../SearchBox';
 import { LoginProfileBtn, CartIconBtn } from '../Buttons'
+import { useSelector } from "react-redux";
 
 
 function Header() {
-    const isLoggedIn = true
+    const user = useSelector((state) => state.user.user);
+    console.log(user)
 
     return (
         <>
-        <header className="absolute top-0 bg-white h-15.5 w-screen py-2 flex align-middle">
+        <header className="fixed z-50 top-0 bg-white h-15.5 w-screen py-2 flex align-middle">
             <Container maxWidth='xl'>
                 <div className="flex flex-1 justify-between my-auto h-full">
                     <div className="flex-1 flex gap-10 align-middle sm:max-w-5xl min-w-10 h-full">
@@ -27,13 +29,13 @@ function Header() {
                     <div className="sm:w-52.5 w-5 flex align-middle justify-end">
                         <Stack direction="row" spacing={3} alignItems='center' onClick={()=> console.log('It has it')}>
                             <div className='hidden sm:flex'>
-                                <LoginProfileBtn isLoggedIn={isLoggedIn} />
-                                <CartIconBtn quantity={3} />
+                                <LoginProfileBtn isLoggedIn={user.isLoggedIn} />
+                                <CartIconBtn />
                             </div>
 
                             <div className="sm:hidden">
                                 {/* hamburger */}
-                                <HeaderMenu  isLoggedIn={isLoggedIn} />
+                                <HeaderMenu  isLoggedIn={user.isLoggedIn} />
                             </div>
                             
                         </Stack>

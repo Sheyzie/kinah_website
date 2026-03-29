@@ -5,7 +5,7 @@ import bannerImage from "../assets/banner_image.png"
 export default function HeroSection() {
     return (
         <>
-            <section className="w-full my-20">
+            <section className="w-full mt-25 mb-10">
                 <Container maxWidth='xl'>
                     <div className="h-fit sm:h-80 w-full p-8 bg-transparent sm:bg-[#E9D0D8] rounded-2xl block sm:flex justify-between align-middle">
                         <div className="">

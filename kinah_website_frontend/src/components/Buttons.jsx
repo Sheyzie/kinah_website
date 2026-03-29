@@ -4,6 +4,7 @@ import Avatar from '@mui/material/Avatar';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCartOutlined';
 import Badge, { badgeClasses } from '@mui/material/Badge';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { useSelector } from "react-redux";
 
 export function PrimaryBtn({ text, action }) {
     return (
@@ -24,6 +25,7 @@ export function PrimaryBtn({ text, action }) {
 }
 
 export function LoginProfileBtn({ isLoggedIn, showName }) {
+    const user = useSelector((state) => state.user.user)
     return (
         <Stack 
             direction="row" 
@@ -40,8 +42,8 @@ export function LoginProfileBtn({ isLoggedIn, showName }) {
             }}>
             {isLoggedIn ? (
                 <>
-                <Avatar sx={{ bgcolor: 'var(--primary-color)' }}>OP</Avatar>
-                {showName ? <h3>Ola Precious</h3> : ''}
+                <Avatar sx={{ bgcolor: 'var(--primary-color)' }}>{user.first_name[0]}{user.last_name[0]}</Avatar>
+                {showName ? <h3>{user.first_name} {user.last_name}</h3> : ''}
                 </>
             ) : (
                 <>
@@ -63,7 +65,9 @@ const CartBadge = styled(Badge)`
 `;
 
 
-export function CartIconBtn({ quantity }) {
+export function CartIconBtn() {
+    const quantity = useSelector(state => state.cart.items.length)
+
     return (
         <IconButton
             sx={{
@@ -77,7 +81,7 @@ export function CartIconBtn({ quantity }) {
             >
             <ShoppingCartIcon fontSize="small" />
             <CartBadge 
-                badgeContent={quantity} 
+                badgeContent={quantity + 1} 
                 overlap="circular" 
                 sx={{
                     '& .MuiBadge-badge' : {
