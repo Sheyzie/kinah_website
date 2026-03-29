@@ -28,6 +28,7 @@ export default function SearchBox() {
                 sx={{ 
                     width: '800px',
                     display: 'flex',
+                    height: '100%'
                     }}
                 noValidate
                 autoComplete="off"
@@ -39,13 +40,14 @@ export default function SearchBox() {
                     placeholder="Search products and category"
                     sx={{
                         flex: '1',
+                        height: '100%',
                         '& .MuiOutlinedInput-root': {
                             '& input': {
-                                height: '100%'
+                                // height: '100%'
                             },
                             '& fieldset': {
                                 borderColor: 'background.paper', // default border
-                                height: '100%',
+                                height: '95%',
                             },
                             '&:hover fieldset': {
                                 borderColor: 'background.paper', // on hover
@@ -65,7 +67,7 @@ export default function SearchBox() {
                     
                 />
 
-                <div className='mr-8'>
+                <div className='mr-8 ml-2'>
                     <PrimaryBtn text='Search' action={handleSearchBtnClick}/>
                 </div>
             </Box>

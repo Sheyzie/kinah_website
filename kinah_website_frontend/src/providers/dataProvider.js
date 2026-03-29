@@ -1,6 +1,6 @@
 import axiosInstance from "../utils/axiosInstance";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = "http://localhost:8000/api/v1";
 
 export const dataProvider = {
     getList: async ({ resource, pagination, filters, sorters }) => {
@@ -33,7 +33,7 @@ export const dataProvider = {
   },
 
   getOne: async ({ resource, id }) => {
-    const response = await axiosInstance.get(`${API_URL}/${resource}/${id}/`);
+    const response = await axiosInstance.get(`/${resource}/${id}/`);
 
     return {
       data: response.data,
@@ -42,7 +42,7 @@ export const dataProvider = {
 
   create: async ({ resource, variables }) => {
     const response = await axiosInstance.post(
-      `${API_URL}/${resource}/`,
+      `/${resource}/`,
       variables
     );
 
@@ -53,7 +53,7 @@ export const dataProvider = {
 
   update: async ({ resource, id, variables }) => {
     const response = await axiosInstance.put(
-      `${API_URL}/${resource}/${id}/`,
+      `/${resource}/${id}/`,
       variables
     );
 
@@ -63,7 +63,7 @@ export const dataProvider = {
   },
 
   deleteOne: async ({ resource, id }) => {
-    await axiosInstance.delete(`${API_URL}/${resource}/${id}/`);
+    await axiosInstance.delete(`/${resource}/${id}/`);
 
     return {
       data: { id },

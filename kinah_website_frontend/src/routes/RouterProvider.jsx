@@ -8,7 +8,7 @@ import OrderPage from "../pages/OrderPage";
 import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
 import UserProfilePage from "../pages/UserProfilePage";
-
+import { productLoader } from "../loaders/productLoader";
 
 export const router = createBrowserRouter([
   {
@@ -17,7 +17,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage />},
       { path: "landing-page", element: <LandingPage /> },
-      { path: "products/:id", element: <ProductPage /> },
+      { path: "products/:id", element: <ProductPage />, loader: productLoader },
       { path: "orders", element: <OrderPage /> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },

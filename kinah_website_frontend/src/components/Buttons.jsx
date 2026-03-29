@@ -18,7 +18,27 @@ export function PrimaryBtn({ text, action }) {
                 },
                 height: '100%',
                 width: '100%',
-                mx: '10px',
+                // mx: '10px',
+            }}
+        >{text}</Button>
+    )
+}
+
+export function SecondaryBtn({ text, action }) {
+    return (
+        <Button 
+            variant="outlined"
+            onClick={action}
+            sx={{
+                borderColor: 'var(--primary-color)',
+                color: 'var(--primary-color)',
+                '&:hover': {
+                borderColor: 'var(--primary-color)', // optional: keep same on hover
+                color: 'var(--primary-color)', // optional: keep same on hover
+                },
+                height: '100%',
+                width: '100%',
+                // mx: '10px',
             }}
         >{text}</Button>
     )

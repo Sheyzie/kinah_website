@@ -87,6 +87,7 @@ class EcommerceAPITestCase(APITestCase):
         product = Product.objects.create(**self.product_data)
         url = reverse('product-detail', kwargs={'pk': product.id})
         response = self.client.get(url)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['data']['name'], product.name)
 
@@ -125,6 +126,7 @@ class EcommerceAPITestCase(APITestCase):
         Review.objects.create(product=product, user=self.user, rating=5)
         url = reverse('review-detail', kwargs={'product_id': product.id})
         response = self.client.get(url)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['data']), 1)
         self.assertEqual(response.data['data'][0]['rating'], 5)
