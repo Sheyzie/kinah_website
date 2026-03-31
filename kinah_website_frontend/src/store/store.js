@@ -10,3 +10,9 @@ export const store = configureStore({
     products: productReducer,
   },
 });
+
+// save cart to local storage
+store.subscribe(() => {
+  const state = store.getState();
+  localStorage.setItem("cart", JSON.stringify(state.cart.items));
+});

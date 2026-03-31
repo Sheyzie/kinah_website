@@ -5,11 +5,13 @@ import HeaderMenu from '../HeaderMenu';
 import SearchBox from '../SearchBox';
 import { LoginProfileBtn, CartIconBtn } from '../Buttons'
 import { useSelector } from "react-redux";
+import { useNavigate } from 'react-router';
 
 
 function Header() {
     const user = useSelector((state) => state.user.user);
     console.log(user)
+    const navigate = useNavigate()
 
     return (
         <>

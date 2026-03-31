@@ -14,6 +14,7 @@ import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import Avatar from '@mui/material/Avatar';
+import { useNavigate } from 'react-router';
 
 
 const CartBadge = styled(Badge)`
@@ -26,6 +27,7 @@ const CartBadge = styled(Badge)`
 
 function HeaderMenu({ isLoggedIn }) {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate()
 
   return (
     <>
@@ -62,9 +64,9 @@ function HeaderMenu({ isLoggedIn }) {
           <br />
 
           {/* 🔹 Cart Section */}
-          <Stack direction='row' spacing={2} alignItems='center'>
+          <Stack direction='row' spacing={2} alignItems='center' onClick={()=> navigate('cart')}>
             <CartIconBtn quantity={3} />
-            <h3>Cart</h3>
+            <h3 onClick={()=> navigate('cart')}>Cart</h3>
           </Stack>
 
         </Box>

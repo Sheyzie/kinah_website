@@ -1,11 +1,26 @@
 import { Card, CardMedia, Chip, Paper, Stack } from "@mui/material"
 import StarIcon from '@mui/icons-material/Star';
 import { PrimaryBtn, SecondaryBtn } from "../components/Buttons";
+import { useDispatch } from "react-redux";
+import { addToCart } from "../store/cartSlice";
 
 
 export default function ProductDetail({ product }) {
     const mainImage = product.images.find(image => image.is_primary === true)
     const otherImages = product.images.filter(image => image.is_primary !== true)
+
+    const dispatch = useDispatch()
+
+    const addProductToCart = (e) => {
+        const productData = {
+            id: product.id,
+            name: product.name,
+            price: product.final_price,
+            image: mainImage.image,
+        }
+
+        dispatch(addToCart(productData))
+    }
 
     return (
         <Paper elevation={3} sx={{ p: 3, borderRadius: 3, width: '100%', height: 'fit-content'}}>
@@ -25,7 +40,7 @@ export default function ProductDetail({ product }) {
                                     marginBottom: '10px'
                                 }}
                             />
-                            <Stack direction='row'>
+                            <Stack direction='row' >
                                 {otherImages.map(image => (
                                     <CardMedia 
                                         key={image.id}
@@ -54,7 +69,7 @@ export default function ProductDetail({ product }) {
                         
                         <div className="flex flex-col gap-5">
                             {product.quantity > 0 ? 
-                                <PrimaryBtn text='+ Add to Cart' /> : 
+                                <PrimaryBtn text='+ Add to Cart' action={addProductToCart} /> : 
                                 <Chip label='Out of stock' color="warning" sx={{height: 60, fontWeight: 700}}/>
                             }
                             

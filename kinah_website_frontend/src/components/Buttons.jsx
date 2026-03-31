@@ -5,6 +5,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCartOutlined';
 import Badge, { badgeClasses } from '@mui/material/Badge';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router";
 
 export function PrimaryBtn({ text, action }) {
     return (
@@ -14,7 +15,7 @@ export function PrimaryBtn({ text, action }) {
             sx={{
                 backgroundColor: 'var(--primary-color)',
                 '&:hover': {
-                backgroundColor: 'var(--primary-color)', // optional: keep same on hover
+                backgroundColor: 'var(--primary-color)', 
                 },
                 height: '100%',
                 width: '100%',
@@ -33,8 +34,8 @@ export function SecondaryBtn({ text, action }) {
                 borderColor: 'var(--primary-color)',
                 color: 'var(--primary-color)',
                 '&:hover': {
-                borderColor: 'var(--primary-color)', // optional: keep same on hover
-                color: 'var(--primary-color)', // optional: keep same on hover
+                borderColor: 'var(--primary-color)', 
+                color: 'var(--primary-color)', 
                 },
                 height: '100%',
                 width: '100%',
@@ -86,10 +87,12 @@ const CartBadge = styled(Badge)`
 
 
 export function CartIconBtn() {
-    const quantity = useSelector(state => state.cart.items.length)
+    const quantity = useSelector(state => state.cart.items.reduce((total, item) => total + item.quantity, 0))
 
+    const navigate = useNavigate()
     return (
         <IconButton
+            onClick={()=> navigate('cart')}
             sx={{
                 color: 'black',
                 borderColor: 'black',
@@ -101,7 +104,7 @@ export function CartIconBtn() {
             >
             <ShoppingCartIcon fontSize="small" />
             <CartBadge 
-                badgeContent={quantity + 1} 
+                badgeContent={quantity} 
                 overlap="circular" 
                 sx={{
                     '& .MuiBadge-badge' : {
