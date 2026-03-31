@@ -3,9 +3,11 @@ import StarIcon from '@mui/icons-material/Star';
 import { PrimaryBtn, SecondaryBtn } from "../components/Buttons";
 import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
+import { useState } from "react";
 
 
 export default function ProductDetail({ product }) {
+    const [showChip, setShowChip] = useState(false);
     const mainImage = product.images.find(image => image.is_primary === true)
     const otherImages = product.images.filter(image => image.is_primary !== true)
 
@@ -18,6 +20,13 @@ export default function ProductDetail({ product }) {
             price: product.final_price,
             image: mainImage.image,
         }
+
+        setShowChip(true);
+
+        // hide after animation
+        setTimeout(() => {
+            setShowChip(false);
+        }, 600);
 
         dispatch(addToCart(productData))
     }
@@ -67,7 +76,15 @@ export default function ProductDetail({ product }) {
                             <p className="text-sm">save up to {product.discount_type === 'percent'? '%':'₦'}{product.discount_value}</p>
                         </Stack>
                         
-                        <div className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-5 relative">
+                            {showChip && (
+                                <Chip
+                                label="+1"
+                                // color="success"
+                                className="animate-chip"
+                                sx={{backgroundColor: 'pink', color: 'black', width: 60, position: "absolute", top: 0, left: '50%', transform: 'translateX(-50%)' }}
+                                />
+                            )}
                             {product.quantity > 0 ? 
                                 <PrimaryBtn text='+ Add to Cart' action={addProductToCart} /> : 
                                 <Chip label='Out of stock' color="warning" sx={{height: 60, fontWeight: 700}}/>

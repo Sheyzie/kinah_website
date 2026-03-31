@@ -19,6 +19,24 @@ body {
   font-weight: 400;
 }
 
+@keyframes floatUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+
+.animate-chip {
+  animation: floatUpFade 0.6s ease forwards;
+}
+
 
 /* :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
