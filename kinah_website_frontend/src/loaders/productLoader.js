@@ -67,7 +67,7 @@ export const productLoader = async ({ params }) => {
 
   try {
     // const { data } = await dataProvider.getOne({
-    // resource: "products", // change to your resource
+    // resource: "products",
     // id,
     // });
 

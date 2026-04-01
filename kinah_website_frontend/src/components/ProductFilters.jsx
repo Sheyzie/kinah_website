@@ -5,7 +5,7 @@ import {
   Button
 } from "@mui/material";
 
-const ProductFilters = () => {
+const ProductFilters = ({ filter, setFilter, sorter, setSorter }) => {
   return (
     <Stack
       direction={{ xs: "column", sm: "row" }}
@@ -19,7 +19,8 @@ const ProductFilters = () => {
         select
         label="Type"
         size="small"
-        defaultValue='all'
+        value={filter.type}
+        onChange={(e) => setFilter(prevFilter => ({...prevFilter, type: e.target.value}))}
         sx={{ minWidth: 150 }}
       >
         <MenuItem value="all">All</MenuItem>
@@ -33,7 +34,8 @@ const ProductFilters = () => {
         label="Category"
         variant="outlined"
         size="small"
-        defaultValue='all'
+        value={filter.category}
+        onChange={(e) => setFilter(prevFilter => ({...prevFilter, category: e.target.value}))}
         sx={{ minWidth: 150 }}
       >
         <MenuItem value='all'>All</MenuItem>
@@ -48,7 +50,8 @@ const ProductFilters = () => {
         select
         label="Sort By"
         size="small"
-        defaultValue='default'
+        value={sorter}
+        onChange={(e) => setSorter(e.target.value)}
         sx={{ minWidth: 150 }}
       >
         <MenuItem value="default">-- default</MenuItem>
