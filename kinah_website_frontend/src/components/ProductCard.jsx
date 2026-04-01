@@ -10,6 +10,7 @@ import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
 import { useState } from "react";
 import { PrimaryBtn } from './Buttons';
+import { formatToCurrency } from '../utils/formatToCurrency';
 
 
 export default function ProductCard({ product }) {
@@ -21,6 +22,9 @@ export default function ProductCard({ product }) {
         const productData = {
             id: product.id,
             name: product.name,
+            type: product.type.name,
+            category: product.category.name,
+            package_type: product.package_type,
             price: product.final_price,
             image: mainImage.image,
         }
@@ -49,7 +53,7 @@ export default function ProductCard({ product }) {
                     <Link to={`/products/${product.id}`}>
                         <Typography variant="h6">{product.name}</Typography>
                     </Link>
-                    <Typography variant="h4" marginTop={1} marginBottom={1} textAlign='end' fontWeight='bold'>₦{product.price}</Typography>
+                    <Typography variant="h4" marginTop={1} marginBottom={1} textAlign='end' fontWeight='bold'>{formatToCurrency(product.price)}</Typography>
                     <Stack direction='row' justifyContent='space-between' paddingRight={1}>
                         <Typography variant="p">{product.quantity} {product.package_type === 'single' ? 'PCS' : 'PKT' }</Typography>
                         <div className='w-20 justify-end relative'>

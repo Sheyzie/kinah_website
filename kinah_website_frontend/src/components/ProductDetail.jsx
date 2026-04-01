@@ -4,6 +4,7 @@ import { PrimaryBtn, SecondaryBtn } from "../components/Buttons";
 import { useDispatch } from "react-redux";
 import { addToCart } from "../store/cartSlice";
 import { useState } from "react";
+import { formatToCurrency } from "../utils/formatToCurrency";
 
 
 export default function ProductDetail({ product }) {
@@ -17,6 +18,9 @@ export default function ProductDetail({ product }) {
         const productData = {
             id: product.id,
             name: product.name,
+            type: product.type.name,
+            category: product.category.name,
+            package_type: product.package_type,
             price: product.final_price,
             image: mainImage.image,
         }
@@ -71,9 +75,9 @@ export default function ProductDetail({ product }) {
                             {product.sold / 1000}K+ <span className="text-(--outline-color)">Sold</span> &middot; <StarIcon fontSize='small' sx={{color: '#FFC300'}}/> {product.review_score.toString()} <span className="text-(--outline-color)">(225 reviews)</span>
                         </div>
                         <Stack direction='row' spacing={1}>
-                            <h3 className="font-bold text-3xl">₦{product.final_price}</h3>
-                            <p className="text-(--outline-color) line-through opacity-60">₦{product.price}</p>
-                            <p className="text-sm">save up to {product.discount_type === 'percent'? '%':'₦'}{product.discount_value}</p>
+                            <h3 className="font-bold text-3xl">{formatToCurrency(product.final_price)}</h3>
+                            <p className="text-(--outline-color) line-through opacity-60">{formatToCurrency(product.price)}</p>
+                            <p className="text-sm">save up to {product.discount_type === 'percent'? `%${product.discount_value}`: formatToCurrency(product.discount_value)}</p>
                         </Stack>
                         
                         <div className="flex flex-col gap-5 relative">

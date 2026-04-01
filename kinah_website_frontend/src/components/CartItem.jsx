@@ -5,6 +5,7 @@ import { PrimaryBtn } from "../components/Buttons";
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { addToCart, removeFromCart, decreaseQuantity, clearCart } from "../store/cartSlice";
+import { formatToCurrency } from "../utils/formatToCurrency";
 
 
 export default function CartItem({ item, setCartItems }) {
@@ -67,7 +68,7 @@ export default function CartItem({ item, setCartItems }) {
                 />
                 <Stack position='relative' width='100%' spacing={1}>
                     <h3 className="max-w-35 sm:max-w-2xl font-bold">{cartItem.name}</h3>
-                    <h3 className="font-bold text-2xl">₦{cartItem.price}</h3>
+                    <h3 className="font-bold text-2xl">{formatToCurrency(cartItem.price)}</h3>
                     <div className="flex align-middle gap-2 my-2" >
                         <div className="w-16 h-5 inline">
                             <PrimaryBtn text="-" action={reduceQuantity} />

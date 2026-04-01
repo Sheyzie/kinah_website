@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 import { clearCart } from "../store/cartSlice";
+import { formatToCurrency } from "../utils/formatToCurrency";
 
 
 function CartPage(){
@@ -64,20 +65,20 @@ function CartPage(){
                                         <h3 className="font-bold">Order Summary</h3>
                                         <div className="flex justify-between gap-3">
                                             <h3 className="text-(--outline-color)">Subtotal</h3>
-                                            <h3 className="font-bold">₦ {subtotal}</h3>
+                                            <h3 className="font-bold">{formatToCurrency(subtotal)}</h3>
                                         </div>
                                         <div className="flex justify-between gap-3n">
                                             <h3 className="text-(--outline-color)">Discount</h3>
-                                            <h3 className="font-bold">₦0</h3>
+                                            <h3 className="font-bold">{formatToCurrency(0)}</h3>
                                         </div>
                                         <div className="flex justify-between gap-3">
                                             <h3 className="text-(--outline-color)">Delivery</h3>
-                                            <h3 className="font-bold">₦0</h3>
+                                            <h3 className="font-bold">{formatToCurrency(0)}</h3>
                                         </div>
                                         <hr className="text-(--outline-color)" />
                                         <div className="flex justify-between gap-3">
                                             <h3 className="font-bold">Total</h3>
-                                            <h3 className="font-bold">₦ {total}</h3>
+                                            <h3 className="font-bold">{formatToCurrency(total)}</h3>
                                         </div>
 
                                         <div className="h-10 sm:h-15 max-w-90 min-w-50 rounded-full overflow-hidden place-self-center">
