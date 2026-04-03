@@ -1,19 +1,19 @@
-import { Button, Card, CardMedia, Container, Grid, IconButton, Paper, Stack, TextField } from "@mui/material"
+import { Button, Container, Grid, Paper, Stack } from "@mui/material"
 import DeleteIcon from '@mui/icons-material/Delete';
-import productImage from '../assets/product_image.png'
-import { PrimaryBtn, SecondaryBtn } from "../components/Buttons";
+import { PrimaryBtn } from "../components/Buttons";
 import CartItem from "../components/CartItem";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { useState } from "react";
-import { useDispatch } from "react-redux";
 import { clearCart } from "../store/cartSlice";
 import { formatToCurrency } from "../utils/formatToCurrency";
+import { useNavigate } from "react-router";
 
 
 function CartPage(){
     const items = useSelector((state) => state.cart.items) || [];
     const [cartItems, setCartItems] = useState(items)
     const dispatch = useDispatch()
+    const navigate = useNavigate()
 
     let subtotal = cartItems.reduce((total, item) => total + (Number(item.price) * Number(item.quantity)), 0)
 
@@ -82,7 +82,7 @@ function CartPage(){
                                         </div>
 
                                         <div className="h-10 sm:h-15 max-w-90 min-w-50 rounded-full overflow-hidden place-self-center">
-                                            <PrimaryBtn text='Go to Checkout' />
+                                            <PrimaryBtn text='Go to Checkout' action={() => navigate('/checkout')} />
                                         </div>
                                     </Stack>
                                 </Paper>                                

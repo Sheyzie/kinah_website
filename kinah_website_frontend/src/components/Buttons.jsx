@@ -7,11 +7,12 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router";
 
-export function PrimaryBtn({ text, action }) {
+export function PrimaryBtn({ text, action, disabled=false }) {
     return (
         <Button 
             variant="contained"
             onClick={action}
+            disabled={disabled}
             sx={{
                 backgroundColor: 'var(--primary-color)',
                 '&:hover': {
