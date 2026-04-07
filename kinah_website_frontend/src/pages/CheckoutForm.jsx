@@ -3,9 +3,12 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState } from "react";
 
 
-export function EmailAccordion({email, emailError, handleChange}) {
+export function EmailAccordion({email, emailError, handleChange, expanded, handleAccordionChange}) {
     return (
-        <Accordion>
+        <Accordion
+            expanded={expanded === "email"}
+            onChange={handleAccordionChange("email")}
+        >
             <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
@@ -31,13 +34,16 @@ export function EmailAccordion({email, emailError, handleChange}) {
     )
 }
 
-export function ShippingAddressAccordion ({ addresses, addressData, setError, handleChange, handleSelect, handleSearch, type }) {
+export function ShippingAddressAccordion ({ addresses, addressData, setError, handleChange, handleSelect, handleSearch, type, expanded, handleAccordionChange }) {
     const [streetAddressError, setStreetAddressError] = useState(false)
     const [apartmentAddressError, setApartmentAddressError] = useState(false)
     const [postalCodeError, setPostalCodeError] = useState(false)
     
     return (
-        <Accordion>
+        <Accordion
+            expanded={expanded === type}
+            onChange={handleAccordionChange(type)}
+        >
             <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
@@ -153,9 +159,12 @@ export function ShippingAddressAccordion ({ addresses, addressData, setError, ha
     )
 }
 
-export function DeliveryVendorAccordion ({ vendors, setVendor }) {
+export function DeliveryVendorAccordion ({ vendors, setVendor, expanded, handleAccordionChange, setError }) {
     return (
-        <Accordion>
+        <Accordion
+            expanded={expanded === "delivery"}
+            onChange={handleAccordionChange("delivery")}
+        >
             <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="panel1-content"
@@ -171,7 +180,10 @@ export function DeliveryVendorAccordion ({ vendors, setVendor }) {
                     variant="outlined"
                     fullWidth
                     defaultValue=''
-                    onChange={(e) => setVendor(e.target.value)}
+                    onChange={(e) => {
+                        setError({})
+                        setVendor(vendors.find(vendor => vendor.id == e.target.value))
+                    }}
                 >
                     <MenuItem value=''></MenuItem>
                     {vendors.map(vendor => {

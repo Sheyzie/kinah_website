@@ -441,7 +441,7 @@ class UserAPITestCase(BaseAPITest):
 
         url = reverse('users-list') + 'me/'
         response = self.client.get(url, headers=headers)
-
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)

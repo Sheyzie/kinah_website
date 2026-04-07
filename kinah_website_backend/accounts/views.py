@@ -401,6 +401,7 @@ class UserViewSet(BaseModelViewSet):
             address_data = None
             if address:
                 address_data = {
+                    'id': address.id,
                     'address_type': address.address_type,
                     'street_address': address.street_address,
                     'apartment_address' : address.apartment_address,
@@ -411,6 +412,7 @@ class UserViewSet(BaseModelViewSet):
                 }
 
             return address_data
+
 
 class RoleViewSet(BaseModelViewSet):
     serializer_class = RoleSerializer
