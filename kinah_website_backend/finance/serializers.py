@@ -18,16 +18,15 @@ class AddressSerializer(serializers.ModelSerializer):
     Serializer for Address model with user assignment
     """
     user = serializers.PrimaryKeyRelatedField(
-        read_only=True,
-        default=serializers.CurrentUserDefault()
+        read_only=True
     )
     
     class Meta:
         model = Address
         fields = [
-            'id', 'user', 'address_type', 'full_name', 'street_address',
+            'id', 'user', 'address_type', 'place_id', 'full_address', 'street_address',
             'apartment_address', 'city', 'state', 'postal_code', 'country',
-            'created_at', 'updated_at'
+            'latitude', 'longitude', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'user']
     
@@ -35,10 +34,6 @@ class AddressSerializer(serializers.ModelSerializer):
         """
         Validate address data
         """
-        if not data.get('full_name'):
-            raise serializers.ValidationError(
-                {"full_name": "Full name is required."}
-            )
         
         if not data.get('street_address'):
             raise serializers.ValidationError(
@@ -56,13 +51,13 @@ class AddressSerializer(serializers.ModelSerializer):
         if not role:
             raise serializers.ValidationError(f'Role is required')
 
-        role = role.role_name
+        role_name = role.role_name
 
-        if address_type == 'home' and role not in ['staff', 'admin']:
-            raise serializers.ValidationError(f'Invalid address type for role {role}')
+        if address_type == 'home' and role_name not in ['staff', 'admin']:
+            raise serializers.ValidationError(f'Invalid address type for role {role_name}')
 
-        if address_type == 'office' and role != 'dispatcher':
-            raise serializers.ValidationError(f'Invalid address type for role {role}')
+        if address_type == 'office' and role_name != 'dispatcher':
+            raise serializers.ValidationError(f'Invalid address type for role {role_name}')
         
         
         return super().create(validated_data)
@@ -104,7 +99,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = [
-            'id', 'product', 'product_name', 'product_category',
+            'id', 'product', 'product_name', 'product_category', 'product_image',
             'product_type', 'package_type', 'quantity', 'unit_price',
             'total_price', 'created_at', 'updated_at'
         ]
@@ -227,13 +222,13 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'status', 'payment_status', 'payment_method', 'shipping_cost',
             'tax_name', 'tax_type', 'tax_amount', 'discount_type', 'discount_value',
             'subtotal', 'discount', 'total_amount', 'tracking_number',
-            'shipping_carrier', 'estimated_delivery', 'customer_email', 'customer_note', 'admin_note',
-            'ip_address', 'coupon_code', 'items', 'status_history', 'payments', 'dispatch',
+            'shipping_carrier', 'shipping_distance', 'vendor_cost_per_km', 'estimated_delivery', 'customer_email', 'customer_note', 'admin_note',
+            'ip_address', 'coupon_code', 'items', 'status_history', 'payments', 'dispatch', 'shipping_cost',
             'created_at', 'updated_at', 'paid_at', 'shipped_at', 'delivered_at'
         ]
         read_only_fields = [
             'id', 'order_number', 'user', 'created_at', 'updated_at',
-            'paid_at', 'shipped_at', 'delivered_at'
+            'paid_at', 'shipped_at', 'delivered_at', 'shipping_cost',
         ]
 
     def get_dispatch(self, obj):
@@ -242,11 +237,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         return {
             'id': obj.dispatch.id,
             'driver': obj.dispatch.driver.full_name if obj.dispatch.driver else None,
+            'cost_per_km': obj.dispatch.cost_per_km,
             'vehicle': {
-                    'id': obj.dispatch.vehicle.id,
-                    'vehicle_type': obj.dispatch.vehicle.vehicle_type,
-                    'plate_number': obj.dispatch.vehicle.plate_number
-                },
+                'id': obj.dispatch.vehicle.id,
+                'vehicle_type': obj.dispatch.vehicle.vehicle_type,
+                'plate_number': obj.dispatch.vehicle.plate_number
+            },
         }
 
 
@@ -255,27 +251,18 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
     Serializer for creating and updating orders
     """
     items = OrderItemSerializer(many=True)
-    shipping_address_id = serializers.PrimaryKeyRelatedField(
-        queryset=Address.objects.all(),
-        source='shipping_address',
-        required=False,
-        allow_null=True
-    )
-    billing_address_id = serializers.PrimaryKeyRelatedField(
-        queryset=Address.objects.all(),
-        source='billing_address',
-        required=False,
-        allow_null=True
-    )
+    shipping_address = AddressSerializer(required=False)
+    billing_address = AddressSerializer(required=False)
     
     class Meta:
         model = Order
         fields = [
-            'shipping_address_id', 'billing_address_id', 'payment_method',
-            'shipping_cost', 'tax_name', 'tax_type', 'tax_amount',
+            'shipping_address', 'billing_address', 'payment_method',
+            'shipping_cost', 'shipping_carrier', 'tax_name', 'tax_type', 'tax_amount',
             'discount_type', 'discount_value', 'customer_note', 'customer_email',
             'coupon_code', 'items'
         ]
+        read_only_fields = ['shipping_cost']
     
     def validate_items(self, value):
         """
@@ -311,12 +298,11 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
                 if user.is_authenticated and coupon.per_user_limit:
                     user_usage = Order.objects.filter(
                         user=user,
-                        coupon_code=value,
-                        payment_status='paid'
+                        coupon_code=value
                     ).count()
                     if user_usage >= coupon.per_user_limit:
                         raise serializers.ValidationError(
-                            "You have already used this coupon."
+                            f"You have already used this coupon {user_usage} times."
                         )
                 
             except Coupon.DoesNotExist:
@@ -330,6 +316,10 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         Create order with items
         """
         items_data = validated_data.pop('items')
+        shipping_address = validated_data.pop('shipping_address', None)
+        billing_address = validated_data.pop('billing_address', None)
+        shipping_carrier = validated_data.pop('shipping_carrier', None)
+        coupon_code = validated_data.pop('coupon_code', None)
         user = self.context['request'].user
         validated_data['payment_status'] = 'pending'
         validated_data['status'] = 'pending'
@@ -340,10 +330,55 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         if not user.is_authenticated and customer_email is None:
             raise serializers.ValidationError('Customer email is required for a non user')
         
+        # create shipping address
+        if not shipping_address:
+            raise serializers.ValidationError({
+                "shipping_address": "This field is required."
+            })
+        shipping_address_serializer = AddressSerializer(data=shipping_address)
+
+        shipping_address_serializer.is_valid(raise_exception=True)
+        shipping_address_instance = shipping_address_serializer.save(user=user)
+
+        # create billing address
+        if not billing_address:
+            raise serializers.ValidationError({
+                "billing_address": "This field is required."
+            })
+        billing_address_serializer = AddressSerializer(data=billing_address)
+
+        billing_address_serializer.is_valid(raise_exception=True)
+        billing_address_instance = billing_address_serializer.save(user=user)
+
+        # get carrier from dispatch
+        if not shipping_carrier:
+            raise serializers.ValidationError({
+                "shipping_carrier": "This field is required."
+            })
+        dispatch = None
+        try:
+            dispatch = Dispatch.objects.get(id=shipping_carrier)
+        except Dispatch.DoesNotExist:
+            raise serializers.ValidationError('Carrier does not exist')
+        
+        # validate coupon
+        if coupon_code:
+            if not user.is_authenticated:
+                raise serializers.ValidationError('Only authenticated user can use coupon')
+            
+            # self.validate_coupon_code(coupon_code)
+            
+            
+
         # Create order
         order = Order.objects.create(
             user=user if user.is_authenticated else None,
             customer_email=user.email if user.is_authenticated else customer_email,
+            shipping_address=shipping_address_instance,
+            billing_address=billing_address_instance,
+            shipping_carrier=shipping_carrier,
+            vendor_cost_per_km=dispatch.cost_per_km,
+            coupon_code=coupon_code,
             **validated_data
         )
         
@@ -388,6 +423,9 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         Update order and handle items if provided
         """
         old_status = instance.status
+        shipping_address = validated_data.pop('shipping_address', None)
+        billing_address = validated_data.pop('billing_address', None)
+        validated_data.pop('coupon_code', None)
         items_data = validated_data.pop('items', None)
         new_status = validated_data.get('status', old_status)
         validated_data.pop("status", None)
@@ -400,6 +438,37 @@ class OrderCreateUpdateSerializer(serializers.ModelSerializer):
         
         # Handle status change
         instance.save()
+
+        # handle shipping address change
+        if shipping_address:
+            if instance.shipping_address:
+                shipping_address_serializer = AddressSerializer(
+                    instance.shipping_address,
+                    data=shipping_address
+                )
+            else:
+                shipping_address_serializer = AddressSerializer(data=shipping_address)
+
+            shipping_address_serializer.is_valid(raise_exception=True)
+            shipping_address_instance = shipping_address_serializer.save()
+            instance.shipping_address = shipping_address_instance
+            instance.save()
+
+        # handle billing address change
+        if billing_address:
+            if instance.billing_address:
+                billing_address_serializer = AddressSerializer(
+                    instance.billing_address,
+                    data=billing_address
+                )
+            else:
+                billing_address_serializer = AddressSerializer(data=billing_address)
+
+            billing_address_serializer.is_valid(raise_exception=True)
+            billing_address_instance = billing_address_serializer.save()
+            instance.billing_address = billing_address_instance
+            instance.save()
+
         
         # Create status history if status changed
         if old_status != new_status:

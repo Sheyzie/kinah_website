@@ -51,6 +51,8 @@ class Dispatch(models.Model):
         related_name='dispatch'
     )
 
+    cost_per_km = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+
     is_active = models.BooleanField(default=False, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICE, default='available')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -50,13 +50,14 @@ class EcommerceAPITestCase(APITestCase):
                     'phone': '+1234567120'
                 },
             "company_address": {
-                    'full_name': 'Test Driver', 
-                    'street_address': '123 Main st', 
-                    'apartment_address': 'Block B', 
+                    'street_address': '123', 
+                    'apartment_address': 'Main st', 
                     'city': 'Ikeja', 
                     'state': 'Lagos',
                     'postal_code': '100262',
-                    'country': 'Nigeria'
+                    'country': 'Nigeria',
+                    'latitude': 331,
+                    'longitude': 334,
                 },
             "vehicle": self.vehicle_data,
             "company_name": 'Test Driver Corp'
@@ -131,7 +132,7 @@ class EcommerceAPITestCase(APITestCase):
         data = self.dispatch_data
 
         response = self.client.post(url, data, format='json')
-
+        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Dispatch.objects.count(), 1)
 

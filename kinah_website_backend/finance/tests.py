@@ -58,28 +58,6 @@ class EcommerceAPITestCase(APITestCase):
 
         self.product = Product.objects.create(**product_data)
 
-        # Address data
-        self.address_data = {
-            "address_type": "shipping",
-            "full_name": "John Doe",
-            "street_address": "123 Main St",
-            "city": "Lagos",
-            "state": "Lagos",
-            "country": "Nigeria"
-        }
-
-        # Order data
-        self.order_data = {
-            "payment_method": "paystack",
-            "items": [
-                {
-                    "product": self.product.id,
-                    "quantity": 2,
-                    "unit_price": "100.00"
-                }
-            ]
-        }
-
         # Coupon data
         self.coupon_data = {
             'code': "TEST10",
@@ -88,6 +66,96 @@ class EcommerceAPITestCase(APITestCase):
             'valid_from': timezone.now(),
             'valid_to': timezone.now() + timezone.timedelta(days=1),
             'is_active': True
+        }
+
+        # Address data
+        self.address_data = {
+            "address_type": "shipping",
+            "street_address": "123 Main St",
+            "city": "Lagos",
+            "state": "Lagos",
+            "country": "Nigeria"
+        }
+
+        # Vehicle data
+        vehicle_data = {
+            'vehicle_type': 'Car',
+            'vehicle_brand': 'Lambo',
+            'plate_number': 'TXT-132-AA',
+            'plate_state': 'Lagos',
+            'plate_country': 'Nigeria',
+            'color': 'red',
+        }
+
+        # Dispatch data
+        dispatch_data = {
+            "driver": {
+                    'first_name': 'Test', 
+                    'last_name': 'Driver', 
+                    'email': 'testdriver@mail.com',
+                    'password': 'testDriverPass',
+                    'phone': '+1234567120'
+                },
+            "company_address": {
+                    'street_address': '123 Main st', 
+                    'apartment_address': 'Block B', 
+                    'city': 'Ikeja', 
+                    'state': 'Lagos',
+                    'postal_code': '100262',
+                    'country': 'Nigeria'
+                },
+            "vehicle": vehicle_data,
+            "company_name": 'Test Driver Corp'
+        }
+
+        address = Address.objects.create(user=self.user, **dispatch_data['company_address'])
+        vehicle = Vehicle.objects.create(**{**vehicle_data, 'plate_number': 'TXT-132-AB'})
+        dispatch = Dispatch.objects.create(
+            driver=self.user, 
+            company_address=address, 
+            company_name='Test Corp',
+            cost_per_km=300,
+            vehicle=vehicle
+        )
+
+        coupon = Coupon.objects.create(**{**self.coupon_data, 'code': 'TESTCODE'})
+
+        # Order data
+        self.order_data = {
+            'shipping_address': {
+                'address_type': "shipping",
+                'street_address': "Main St",
+                'apartment_address': '123',
+                'city': "Kosofe",
+                'state': "Lagos",
+                'postal_code': None,
+                'longitude': 3.3792, 
+                'latitude': 6.5244,
+                'country': "Nigeria"
+            },
+            'billing_address': {
+                'address_type': "billing",
+                'street_address': "Main St",
+                'apartment_address': '123',
+                'city': "Kosofe",
+                'state': "Lagos",
+                'postal_code': None,
+                'longitude': 3.3792, 
+                'latitude': 6.5244,
+                'country': "Nigeria"
+            },
+            'shipping_carrier': dispatch.id,
+            'shipping_distance': 723.3,
+            'estimated_delivery': timezone.now(),
+            'coupon_code': coupon.code,
+            "payment_method": "paystack",
+            "items": [
+                {
+                    "product": self.product.id,
+                    "quantity": 2,
+                    "unit_price": "100.00"
+                }
+            ]
         }
 
     # ---------------------
@@ -99,7 +167,7 @@ class EcommerceAPITestCase(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Address.objects.count(), 1)
+        self.assertEqual(Address.objects.count(), 2)
 
     def test_get_addresses(self):
         address = Address.objects.create(user=self.user, **self.address_data)
@@ -116,7 +184,6 @@ class EcommerceAPITestCase(APITestCase):
 
         data = {
             "address_type": "billing",
-            "full_name": "John Doe",
             "street_address": "123 Main St",
             "city": "Abuja",
             "state": "Lagos",
@@ -134,9 +201,9 @@ class EcommerceAPITestCase(APITestCase):
         address = Address.objects.create(user=self.user, **self.address_data)
         url = reverse('address-detail', kwargs={'pk': address.id})
         response = self.client.delete(url)
-
+        
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Address.objects.count(), 0)
+        self.assertEqual(Address.objects.count(), 1)
 
 
     # ---------------------
@@ -146,6 +213,7 @@ class EcommerceAPITestCase(APITestCase):
         url = reverse('order-list')
         data = self.order_data
         response = self.client.post(url, data, format='json')
+        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Order.objects.count(), 1)
         self.product.refresh_from_db()
@@ -343,7 +411,6 @@ class EcommerceAPITestCase(APITestCase):
                     'phone': '+1234567120'
                 },
             "company_address": {
-                    'full_name': 'Test Driver', 
                     'street_address': '123 Main st', 
                     'apartment_address': 'Block B', 
                     'city': 'Ikeja', 
@@ -608,12 +675,12 @@ class EcommerceAPITestCase(APITestCase):
         data = {
             "order": order.id,
             "payment_method": "credit_card",
-            "amount": 100.00,
+            "amount": 10.00,
             "status": "completed"
         }
 
         response = self.client.put(url, data, format='json')
-
+        
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         payment.refresh_from_db()
         payment.status = 'completed'
@@ -675,7 +742,7 @@ class EcommerceAPITestCase(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Coupon.objects.count(), 1)
+        self.assertEqual(Coupon.objects.count(), 2)
 
     def test_list_coupon(self):
         admin_user = User.objects.create_superuser(

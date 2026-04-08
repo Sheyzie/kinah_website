@@ -39,22 +39,29 @@ class Address(models.Model):
     )
     
     address_type = models.CharField(max_length=10, choices=ADDRESS_TYPE)
-    full_name = models.CharField(max_length=100)
+    place_id = models.CharField(max_length=100, null=True, blank=True)
     street_address = models.CharField(max_length=255)
     apartment_address = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20, null=True, blank=True)
     country = models.CharField(max_length=100)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def full_address(self):
+        return f'{self.apartment_address}, {self.street_address}, {self.city}, {self.state} State, {self.country}'
 
     class Meta:
         verbose_name = 'Addresses'
 
     def __str__(self):
-        return f'{self.full_name} - {self.street_address}'
+        return f'{self.full_address}'
+
     
     def save(self, *args, **kwargs):
         role = self.user.role.role_name
@@ -67,6 +74,56 @@ class Address(models.Model):
         
         return super().save(*args, **kwargs)
 
+
+
+class Coupon(models.Model):
+    '''
+    Discount coupon
+    '''
+    code = models.CharField(max_length=50, unique=True)
+    discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICE, null=True, blank=True)
+    discount_value = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+
+    # usage limits
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
+    used_count = models.PositiveIntegerField(default=0)
+    per_user_limit = models.PositiveIntegerField(default=1)
+
+    # validity period
+    valid_from = models.DateTimeField()
+    valid_to = models.DateTimeField()
+
+    # minimum order amount
+    min_order_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    # applicable products/category
+    products = models.ManyToManyField(
+        'products.Product',
+        blank=True
+    )
+    category = models.ManyToManyField(
+        'products.ProductsCategory',
+        blank=True
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.code
+    
+    @property
+    def is_valid(self):
+        from django.utils import timezone
+        now = timezone.now()
+        return (
+            self.is_active and 
+            self.valid_from <= now <= self.valid_to and
+            (self.max_uses is None or self.used_count < self.max_uses)
+        )
+   
 
 class Order(models.Model):
     '''
@@ -121,7 +178,7 @@ class Order(models.Model):
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD)
 
     # financial fields
-    shipping_cost = models.DecimalField(max_digits=10, decimal_places=2,default=0)
+    # shipping_cost = models.DecimalField(max_digits=10, decimal_places=2,default=0)
     tax_name = models.CharField(max_length=20, null=True, blank=True)
     tax_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICE, null=True, blank=True)
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2,default=0)
@@ -131,6 +188,8 @@ class Order(models.Model):
     # shipping tracking
     tracking_number = models.CharField(max_length=100, unique=True)
     shipping_carrier = models.CharField(max_length=50, null=True, blank=True)
+    shipping_distance = models.FloatField(default=0)
+    vendor_cost_per_km = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     estimated_delivery = models.DateField(null=True, blank=True)
     dispatch = models.ForeignKey(
         'logistics.Dispatch',
@@ -170,6 +229,17 @@ class Order(models.Model):
         if not self._order_number:
             last = Order.objects.aggregate(Max('_order_number'))['_order_number__max']
             self._order_number = (last or 0) + 1
+        
+        if self.coupon_code and self._state.adding:
+            try:
+                coupon = Coupon.objects.get(code=self.coupon_code)
+                if coupon.is_valid:
+                    self.discount_value = coupon.discount_value
+                    self.discount_type = coupon.discount_type
+                    coupon.used_count += 1
+                    coupon.save()
+            except Coupon.DoesNotExist:
+                pass
         return super().save(*args, **kwargs)
     
     @property
@@ -177,13 +247,17 @@ class Order(models.Model):
         return f'ORD-{self._order_number:06d}'
     
     @property
+    def shipping_cost(self):
+        return float(self.shipping_distance * float(self.vendor_cost_per_km))
+    
+    @property
     def subtotal(self):
-        return sum(item.total_price for item in self.items.all())
+        return float(sum(item.total_price for item in self.items.all()))
     
     @property
     def discount(self):
         if self.discount_type == 'percent':
-            return self.subtotal - (self.subtotal * self.discount_value / 100)
+            return self.subtotal - (self.subtotal * float(self.discount_value) / 100)
 
         if self.discount_type == 'amount':
             return self.subtotal - self.discount_value
@@ -192,8 +266,8 @@ class Order(models.Model):
 
     @property
     def total_amount(self):
-        total_amount = self.subtotal + self.shipping_cost + self.tax_amount - self.discount
-        return total_amount
+        total_amount = (self.subtotal + self.shipping_cost + float(self.tax_amount) - self.discount) + self.shipping_cost
+        return float(total_amount)
     
     @property
     def item_count(self):
@@ -214,6 +288,7 @@ class OrderItem(models.Model):
     product_category = models.CharField(max_length=100)
     product_type = models.CharField(max_length=100)
     package_type = models.CharField(max_length=100)
+    product_image = models.ImageField(upload_to='products/images/', null=True, blank=True)
 
     quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=8, decimal_places=2)
@@ -278,56 +353,7 @@ class OrderDispatchHistory(models.Model):
 
     def __str__(self):
         return f'{self.order.order_number} - {self.get_status_display()}'
-
-
-class Coupon(models.Model):
-    '''
-    Discount coupon
-    '''
-    code = models.CharField(max_length=50, unique=True)
-    discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICE, null=True, blank=True)
-    discount_value = models.DecimalField(max_digits=6, decimal_places=2, default=0)
-
-    # usage limits
-    max_uses = models.PositiveIntegerField(null=True, blank=True)
-    used_count = models.PositiveIntegerField(default=0)
-    per_user_limit = models.PositiveIntegerField(default=1)
-
-    # validity period
-    valid_from = models.DateTimeField()
-    valid_to = models.DateTimeField()
-
-    # minimum order amount
-    min_order_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-
-    # applicable products/category
-    products = models.ManyToManyField(
-        'products.Product',
-        blank=True
-    )
-    category = models.ManyToManyField(
-        'products.ProductsCategory',
-        blank=True
-    )
-
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.code
-    
-    @property
-    def is_valid(self):
-        from django.utils import timezone
-        now = timezone.now()
-        return (
-            self.is_active and 
-            self.valid_from <= now <= self.valid_to and
-            (self.max_uses is None or self.used_count < self.max_uses)
-        )
-    
+ 
 
 class Payment(models.Model):
     '''

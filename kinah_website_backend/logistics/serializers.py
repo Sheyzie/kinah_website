@@ -70,7 +70,7 @@ class DispatchListDetailSerializer(serializers.ModelSerializer):
         if not obj.company_address:
             return None
         return {
-            'full_name': obj.company_address.full_name,
+            'full_address': obj.company_address.full_address,
             'street_address': obj.company_address.street_address,
             'apartment_address': obj.company_address.apartment_address,
             'city': obj.company_address.city,
@@ -91,7 +91,7 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dispatch
         fields = [
-            'id', 'driver', 'company_name', 'company_address', 'vehicle',
+            'id', 'driver', 'company_name', 'company_address', 'cost_per_km', 'vehicle',
             'is_active', 'status', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'is_active', 'status', 'created_at', 'updated_at']
@@ -104,9 +104,9 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
         DRIVER_ALLOWED_KEYS = {'first_name', 'last_name', 'email', 'phone', 'password'}
 
         ADDRESS_ALLOWED_KEYS = [
-            'full_name', 'street_address', 
+            'street_address', 
             'apartment_address', 'city', 'state', 'postal_code',
-            'country'
+            'country', 'latitude', 'longitude'
         ]
 
         VEHICLE_ALLOWED_KEYS = [

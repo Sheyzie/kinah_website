@@ -144,7 +144,6 @@ function CheckoutPage(){
             shipping_address: shippingAddress,
             billing_address: billingAddress,
             shipping_carrier: vendor.id,
-            // shipping_cost: vendor.cost * distance, // set from backend
             shipping_distance: kilometers || 0,
             estimated_delivery: deliveryDate,
             coupon_code: coupon,
@@ -184,7 +183,7 @@ function CheckoutPage(){
         {
             id: '1',
             company_name: 'Gokada',
-            cost_per_km: 300
+            cost_per_km: 30
         },
         {
             id: '2',

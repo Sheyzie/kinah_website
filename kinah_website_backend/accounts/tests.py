@@ -247,7 +247,7 @@ class UserAPITestCase(BaseAPITest):
         # data['role_id'] = self.role.id
 
         response = self.client.post(url, data, headers=headers, format='multipart')
-
+        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user = User.objects.get(email=USER_DATA["register"]['email'])
@@ -422,8 +422,8 @@ class UserAPITestCase(BaseAPITest):
         address = Address.objects.create(
             user=self.user,
             address_type="shipping",
-            full_name="John Doe",
-            street_address="123 Main St",
+            street_address="123",
+            apartment_address="Main St",
             city="Lagos",
             state="Lagos",
             country="Nigeria"
@@ -432,8 +432,8 @@ class UserAPITestCase(BaseAPITest):
         address = Address.objects.create(
             user=self.user,
             address_type="billing",
-            full_name="John Doe",
-            street_address="123 Main St",
+            street_address="123",
+            apartment_address="Main St",
             city="Lagos",
             state="Lagos",
             country="Nigeria"
@@ -467,17 +467,18 @@ class UserAPITestCase(BaseAPITest):
 
         # staff address
         data['address'] = {
-            'full_name': 'Test Staff', 
-            'street_address': '123 Main st', 
-            'apartment_address': 'Block B', 
+            'street_address': '123', 
+            'apartment_address': 'Main st', 
             'city': 'Ikeja', 
             'state': 'Lagos',
             'postal_code': '100262',
-            'country': 'Nigeria'
+            'country': 'Nigeria',
+            'latitude': 331,
+            'longitude': 333
         }
 
         response = self.client.post(url, data, headers=headers, format='json')
-
+        
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         user = User.objects.get(email='staff@mail.com')

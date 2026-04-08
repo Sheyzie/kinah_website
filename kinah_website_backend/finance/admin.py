@@ -8,7 +8,7 @@ from .models import (
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ['user__email', 'full_name', 'state', 'country']
+    list_display = ['user__email', 'state', 'country']
     list_filter = ['state', 'country']
     search_fields = ['postal_code', 'state', 'country']
 

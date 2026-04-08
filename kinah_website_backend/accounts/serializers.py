@@ -263,9 +263,9 @@ class StaffUserSerializer(serializers.ModelSerializer):
     
     def validate(self, attrs):
         ADDRESS_ALLOWED_KEYS = [
-            'full_name', 'street_address', 
+            'street_address', 
             'apartment_address', 'city', 'state', 'postal_code',
-            'country'
+            'country', 'latitude', 'longitude'
         ]
 
         address_data = attrs.get('address', None)
@@ -330,9 +330,9 @@ class StaffUserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Staff in address data is not a User instance')
         
         ALLOWED_KEYS = [
-            'full_name', 'street_address', 
+            'street_address', 
             'apartment_address', 'city', 'state', 'postal_code',
-            'country'
+            'country', 'latitude', 'longitude'
         ]
 
         address_data = {}
