@@ -42,7 +42,7 @@ class DispatchListDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dispatch
         fields = [
-            'id', 'driver', 'company_name', 'company_address', 'vehicle',
+            'id', 'driver', 'company_name', 'company_address', 'cost_per_km', 'vehicle',
             'is_active','status', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'is_active','status', 'created_at', 'updated_at']

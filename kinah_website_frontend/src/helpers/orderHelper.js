@@ -101,3 +101,8 @@ export function formatDeliveryDate(date) {
 
     return `${day}${getSuffix(day)} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
 }
+
+export async function getVendors() {
+    const { data } = await dataProvider.getList({resource: 'logistics/dispatches/vendors/'})
+    return data.data
+}

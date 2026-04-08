@@ -142,6 +142,8 @@ class DispatchViewSet(BaseAPIView):
         return super().get_serializer_class()
 
     def get_queryset(self):
+        if self.action == 'vendors':
+            return Dispatch.objects.all().order_by('-created_at')
         user = self.request.user
         has_access = user.is_authenticated and (user.is_superuser or (hasattr(user, 'role') and user.role.is_admin))
         if has_access:
@@ -167,6 +169,24 @@ class DispatchViewSet(BaseAPIView):
         return self.success(
             message="Dispatch status updated successfully"
         )
+    
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], serializer_class=DispatchListDetailSerializer)
+    def vendors(self, request):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        response_data = []
+        for vendor in serializer.data:
+            response_data.append({
+                'id': vendor.get('id', None),
+                'company_name': vendor.get('company_name', None),
+                'cost_per_km': vendor.get('cost_per_km', None)
+            })
+
+        return self.success(
+            data=response_data,
+            message="Delivery vendors retrieved successfully",
+        )
+
     
     def update(self, request, *args, **kwargs):
         return self.failure(

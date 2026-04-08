@@ -204,3 +204,18 @@ class EcommerceAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(Dispatch.objects.count(), 0)
 
+    def test_get_vendors(self):
+        address = Address.objects.create(user=self.user, **self.dispatch_data['company_address'])
+        vehicle = Vehicle.objects.create(**self.vehicle_data)
+        dispatch = Dispatch.objects.create(
+            driver=self.user, 
+            company_address=address, 
+            company_name='Test Corp',
+            vehicle=vehicle
+        )
+        url = reverse('dispatch-list') + 'vendors/'
+        response = self.client.get(url)
+        printInJSON(response.data)
+        print(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('data', response.data)

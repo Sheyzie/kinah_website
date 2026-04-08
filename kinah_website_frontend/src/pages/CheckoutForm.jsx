@@ -1,6 +1,7 @@
 import { Accordion, AccordionDetails, AccordionSummary, Container, Grid, Paper, Typography, Alert, Box, TextField, Stack, FormControl, Autocomplete, MenuItem } from "@mui/material"
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState } from "react";
+import { formatToCurrency } from "../utils/formatToCurrency";
 
 
 export function EmailAccordion({email, emailError, handleChange, expanded, handleAccordionChange}) {
@@ -187,7 +188,7 @@ export function DeliveryVendorAccordion ({ vendors, setVendor, expanded, handleA
                 >
                     <MenuItem value=''></MenuItem>
                     {vendors.map(vendor => {
-                        return <MenuItem key={vendor.id} value={vendor.id}>{vendor.company_name}</MenuItem>
+                        return <MenuItem key={vendor.id} value={vendor.id}>{vendor.company_name} - {formatToCurrency(vendor.cost_per_km)}</MenuItem>
                     })}
                     
                 </TextField>

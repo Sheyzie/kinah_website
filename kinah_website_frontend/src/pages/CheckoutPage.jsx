@@ -41,6 +41,7 @@ function CheckoutPage(){
 
     let debounceTimer;
     const headOffice = [7.3986, 9.0765];
+    
     useEffect(() => {
         clearTimeout(debounceTimer);
         if (query.length < 3) return;
@@ -50,6 +51,8 @@ function CheckoutPage(){
         }, 500)
 
     }, [query])
+
+    
 
     async function fetchAddressData() {
         
