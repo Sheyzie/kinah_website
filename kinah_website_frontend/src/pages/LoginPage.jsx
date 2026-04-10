@@ -40,7 +40,7 @@ export default function LoginPage(){
                                         />
 
                                         <div className="text-right">
-                                             <Link>
+                                             <Link to='/auth/forget-password'>
                                                 Forgot password?
                                             </Link>
                                         </div>

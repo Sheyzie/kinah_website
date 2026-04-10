@@ -62,16 +62,14 @@ export default function RegisterPage(){
                                                 label='Password'
                                                 type="password"
                                                 variant="outlined"
-                                                placeholder="John"
                                                 value={userData.password || ''}
                                                 onChange={(e)=> setUserData(prevData => ({...prevData, password: e.target.value}))}
                                             />
 
                                             <TextField
-                                                label='Password'
+                                                label='Confirm Password'
                                                 type="password"
                                                 variant="outlined"
-                                                placeholder="John"
                                                 value={userData.password || ''}
                                                 onChange={(e)=> setUserData(prevData => ({...prevData, password: e.target.value}))}
                                             />

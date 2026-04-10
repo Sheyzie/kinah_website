@@ -13,6 +13,8 @@ import AuthLayout from "../components/layouts/AuthLayout";
 import LoginPage from "../pages/LoginPage";
 import ErrorBoundary from "../components/general/ErrorBoundary";
 import RegisterPage from "../pages/RegisterPage";
+import ForgotPassword from "../pages/ForgetPassword";
+import PasswordResetPage from "../pages/PasswordResetPage";
 
 
 export const router = createBrowserRouter([
@@ -71,7 +73,15 @@ export const router = createBrowserRouter([
     children: [
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
+      { path: "forget-password", element: <ForgotPassword /> },
     ],
+  },
+  { path: "accounts/set-password/:uid/:token/", 
+    element: <AuthLayout />,
+    errorElement: <ErrorBoundary />,
+    children: [
+      {index: true, element: <PasswordResetPage />},
+    ]
   },
 ]);
 
