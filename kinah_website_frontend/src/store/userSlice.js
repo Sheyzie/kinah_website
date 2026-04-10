@@ -54,7 +54,7 @@ const data = {
       created_at: "2026-04-03T12:43:20.222164Z"
     }
   ],
-  isLoggedIn: true
+  isLoggedIn: false
 }
 
 
@@ -71,7 +71,7 @@ const userSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
 
-      localStorage.setItem("token", action.payload.token);
+      localStorage.setItem("token", JSON.stringify(action.payload.token));
     },
     logout: (state) => {
       state.user = null;

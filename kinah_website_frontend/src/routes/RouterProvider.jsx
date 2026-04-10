@@ -9,11 +9,17 @@ import CartPage from "../pages/CartPage";
 import CheckoutPage from "../pages/CheckoutPage";
 import UserProfilePage from "../pages/UserProfilePage";
 import { productLoader } from "../loaders/productLoader";
+import AuthLayout from "../components/layouts/AuthLayout";
+import LoginPage from "../pages/LoginPage";
+import ErrorBoundary from "../components/general/ErrorBoundary";
+import RegisterPage from "../pages/RegisterPage";
+
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <AppLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       { index: true, element: <HomePage />},
       { path: "landing-page", element: <LandingPage /> },
@@ -31,8 +37,8 @@ export const router = createBrowserRouter([
       //   },
       //   element: <AuthLayout />,
       //   children: [
-      //     { path: "login", element: Login },
-      //     { path: "register", element: Register },
+      //     { path: "login", element: <LoginPage /> },
+      //     // { path: "register", element: Register },
       //   ],
       // },
     //   {
@@ -54,6 +60,19 @@ export const router = createBrowserRouter([
     // },
     ],
   },
+  {
+    path: "auth",
+    loader: withLogging(async () => {
+      console.log("Auth route hit");
+      return null;
+    }),
+    element: <AuthLayout />,
+    errorElement: <ErrorBoundary />,
+    children: [
+      { path: "login", element: <LoginPage /> },
+      { path: "register", element: <RegisterPage /> },
+    ],
+  },
 ]);
 
 function Team() {
@@ -65,13 +84,21 @@ function Team() {
   return <h1>{data.name}</h1>;
 }
 
-async function loggingMiddleware({ request }, next) {
-  let url = new URL(request.url);
-  console.log(`Starting navigation: ${url.pathname}${url.search}`);
-  const start = performance.now();
-  await next();
-  const duration = performance.now() - start;
-  console.log(`Navigation completed in ${duration}ms`);
+function withLogging(loaderFn) {
+  return async (args) => {
+    const url = new URL(args.request.url);
+    console.log(`Starting navigation: ${url.pathname}${url.search}`);
+
+    const start = performance.now();
+
+    try {
+      const result = await loaderFn(args); // 👈 call actual loader
+      return result;
+    } finally {
+      const duration = performance.now() - start;
+      console.log(`Navigation completed in ${duration}ms`);
+    }
+  };
 }
 
 // const userContext = createContext<User>();

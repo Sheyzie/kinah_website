@@ -12,7 +12,7 @@ function App() {
     <>
       <Refine 
         dataProvider={dataProvider}
-        routerProvider={router}
+        // routerProvider={router}
         >
         {/* Main Component */}
         <RouterProvider router={router} />

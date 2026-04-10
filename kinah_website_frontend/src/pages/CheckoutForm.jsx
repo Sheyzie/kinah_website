@@ -161,6 +161,7 @@ export function ShippingAddressAccordion ({ addresses, addressData, setError, ha
 }
 
 export function DeliveryVendorAccordion ({ vendors, setVendor, expanded, handleAccordionChange, setError }) {
+
     return (
         <Accordion
             expanded={expanded === "delivery"}

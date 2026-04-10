@@ -215,7 +215,6 @@ class EcommerceAPITestCase(APITestCase):
         )
         url = reverse('dispatch-list') + 'vendors/'
         response = self.client.get(url)
-        printInJSON(response.data)
-        print(url)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('data', response.data)

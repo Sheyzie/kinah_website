@@ -2,11 +2,12 @@ import { Paper, Box, Stack, CircularProgress, TableContainer, Table, TableHead, 
 import { useEffect, useMemo, useState } from "react";
 import { PrimaryBtn } from "../components/Buttons";
 import { useSelector } from "react-redux";
-import { createOrder, extractAddress, formatDeliveryDate, getDistanceKm } from "../helpers/orderHelper";
+import { processOrder, extractAddress, formatDeliveryDate, getDistanceKm } from "../helpers/orderHelper";
 import { formatToCurrency } from "../utils/formatToCurrency";
+// import { usePaystackPayment } from 'react-paystack';
 
 
-export default function OrderPreviewModal({ orderData, vendor, openModal, setOpenModal }) {
+export default function OrderPreviewModal({ orderData, vendor, openModal, setOpenModal, setError }) {
     const [submitError, setSubmitError] = useState({})
     const [isloading, setIsLoading] = useState(false)
 
@@ -26,6 +27,75 @@ export default function OrderPreviewModal({ orderData, vendor, openModal, setOpe
 
     const total = () => {
         return (subtotal() - discount().discount_value) + calculate_vat() + ((orderData.shipping_distance * vendor?.cost_per_km) || 0)
+    }
+
+    const onPaymentSuccess = async (response) => {
+        // Step 1: send to backend
+        const res = await fetch("/verify/", {
+            method: "POST",
+            body: JSON.stringify({
+            reference: response.reference
+            })
+        });
+
+        // Step 2: backend confirms
+        const data = await res.json();
+
+        if (data.status === "success") {
+            // show success UI
+        } else {
+            // show error (fake or failed payment)
+        }
+    };
+
+    const onPaymentClose = () => {
+        // maybe show message or allow retry
+        setIsLoading(false)
+    }
+
+    const handlePaymentProcess = async (e) => {
+        setIsLoading(true)
+        const result = await processOrder(orderData)
+        if (!result.success) {
+            setIsLoading(false)
+            setOpenModal(false)
+            setError({error: true, message: result.message})
+        }
+
+        const order = result.order
+
+        const config = {
+            ref: order.order_number,
+            email: "user@email.com",
+            amount: 50,
+            currency: "NGN",
+            key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+        };
+
+        const payWithPaystack = () => {
+            const handler = window.PaystackPop.setup({
+                ...config,
+
+                callback: function (response) {
+                    // handle payment success
+                    console.log(response.message)
+                    onPaymentSuccess()
+                },
+
+                onClose: function () {
+                    onPaymentClose()
+                },
+            });
+
+            handler.openIframe();
+        };
+
+        try{
+            payWithPaystack()
+        } catch (err) {
+            console.log('----- ??? -----')
+        }
+
     }
 
     const style = {
@@ -141,7 +211,7 @@ export default function OrderPreviewModal({ orderData, vendor, openModal, setOpe
 
                     <Box sx={{ m: 1, position: 'relative' }} >
                             <div className="h-15">
-                                <PrimaryBtn text='Create Order' action={() => createOrder()} disabled={isloading} />
+                                <PrimaryBtn text='Make Payment' action={handlePaymentProcess} disabled={isloading} />
                             </div>
 
                             {isloading && (

@@ -2,10 +2,17 @@ import { useSelector } from "react-redux"
 import { dataProvider } from "../providers/dataProvider"
 
 
-export async function createOrder(data) {    
+export async function processOrder(data) {    
     console.log(data)
-    const order = dataProvider.create('orders', data)
-    return {success: true, message: 'Success', order}
+    // create order
+    try{
+        // const order = dataProvider.create('orders', data)
+        return {success: true, message: 'Success', order: {order_number: 'ORD-001'}}
+    }
+    catch (err) {
+        return {success: false, message: 'Error', err}
+    }
+    
 }
 
 export const extractAddress = (place) => {
@@ -103,6 +110,26 @@ export function formatDeliveryDate(date) {
 }
 
 export async function getVendors() {
-    const { data } = await dataProvider.getList({resource: 'logistics/dispatches/vendors/'})
-    return data.data
+    // const { data } = await dataProvider.getList({resource: 'logistics/dispatches/vendors/'})
+    // return data.data
+
+    const deliveryVendors = [
+        {
+            id: '1',
+            company_name: 'Gokada',
+            cost_per_km: 30
+        },
+        {
+            id: '2',
+            company_name: 'DHL',
+            cost_per_km: 300
+        },
+        {
+            id: '3',
+            company_name: 'Fedex',
+            cost_per_km: 300
+        },
+    ]
+
+    return deliveryVendors
 }

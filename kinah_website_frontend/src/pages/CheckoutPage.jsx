@@ -1,17 +1,11 @@
-import { Accordion, AccordionDetails, AccordionSummary, Container, Grid, Paper, Typography, Alert, Box, TextField, Stack, FormControl, Autocomplete, MenuItem, CircularProgress, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material"
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useEffect, useMemo, useState } from "react";
+import { Container, Grid, Paper, Alert, Box, TextField, Stack } from "@mui/material"
+import { useEffect, useState } from "react";
 import { PrimaryBtn } from "../components/Buttons";
 import { DeliveryVendorAccordion, EmailAccordion, ShippingAddressAccordion } from "./CheckoutForm";
 import { useSelector } from "react-redux";
-import { createOrder, extractAddress, getDistanceKm } from "../helpers/orderHelper";
-import { formatToCurrency } from "../utils/formatToCurrency";
+import { extractAddress, getDistanceKm, getVendors } from "../helpers/orderHelper";
 import OrderPreviewModal from "../components/OrderPreviewModal";
 
-{/* <Alert severity="success">This is a success Alert.</Alert>
-<Alert severity="info">This is an info Alert.</Alert>
-<Alert severity="warning">This is a warning Alert.</Alert>
-<Alert severity="error">This is an error Alert.</Alert> */}
 
 function CheckoutPage(){
     const currentUser = useSelector(state => state.user.user) || {}
@@ -25,9 +19,10 @@ function CheckoutPage(){
     const [address, setAddress] = useState([]);
     const [shippingAddress, setShippingAddress] = useState(currentUser.shipping_address || {address_type: 'shipping'});
     const [billingAddress, setBillingAddress] = useState(currentUser.shipping_address || {address_type: 'billing'});
+    const [vendors, setVendors] = useState([])
     const [vendor, setVendor] = useState(null)
     const [coupon, setCoupon] = useState('')
-    const [shippingDistance, setShippingDistance] = useState(0)
+    const [comment, setComment] = useState('')
     
     // form submition state
     const [submitError, setSubmitError] = useState({})
@@ -50,9 +45,16 @@ function CheckoutPage(){
             fetchAddressData()
         }, 500)
 
+        return () => {
+            clearTimeout(debounceTimer);
+        }
+
     }, [query])
 
-    
+    useEffect(() => {
+        fetchVendors()
+
+    }, [])
 
     async function fetchAddressData() {
         
@@ -62,6 +64,11 @@ function CheckoutPage(){
 
         const data = await res.json();
         setAddress(data);
+    }
+
+    async function fetchVendors() {
+        const vendorList = await getVendors()
+        setVendors(vendorList)
     }
 
     const handleChange = (value, field, address_type='') => {
@@ -140,8 +147,6 @@ function CheckoutPage(){
 
         const { kilometers, deliveryDate } = await getDistanceKm(headOffice, [shippingAddress.longitude, shippingAddress.latitude])
 
-        setShippingDistance(kilometers || 0)
-
         const data = {
             customer_email: email,
             shipping_address: shippingAddress,
@@ -150,6 +155,7 @@ function CheckoutPage(){
             shipping_distance: kilometers || 0,
             estimated_delivery: deliveryDate,
             coupon_code: coupon,
+            customer_note: comment,
             items: products.map(product => ({
                 id: product.id, 
                 product_name: product.name,
@@ -164,41 +170,12 @@ function CheckoutPage(){
 
         setOrderData(data)
         setOpenModal(true)
-
-
-        // try {
-        //     const { success, message, order } = await createOrder(data)
-        // }
-        // catch (err) {
-        //     console.error(err)
-        // }
-        // finally{
-        //     setIsLoading(false)
-        // }
         
     }
 
     const handleAccordionChange = (panel) => (event, isExpanded) => {
         setExpanded(isExpanded ? panel : false);
     };
-
-    const deliveryVendors = [
-        {
-            id: '1',
-            company_name: 'Gokada',
-            cost_per_km: 30
-        },
-        {
-            id: '2',
-            company_name: 'DHL',
-            cost_per_km: 300
-        },
-        {
-            id: '3',
-            company_name: 'Fedex',
-            cost_per_km: 300
-        },
-    ]
 
     return (
         <>
@@ -246,7 +223,7 @@ function CheckoutPage(){
                                 />
 
                                 <DeliveryVendorAccordion 
-                                    vendors={deliveryVendors} 
+                                    vendors={vendors} 
                                     setVendor={setVendor}
                                     setError={setSubmitError}
                                     expanded={expanded}
@@ -261,6 +238,15 @@ function CheckoutPage(){
                                     onChange={(e) => setCoupon(e.target.value)}
                                 />
 
+                                <TextField
+                                    multiline
+                                    label="Comment"
+                                    variant="outlined"
+                                    fullWidth
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                />
+
                                 {submitError.error? <Alert severity="error">{submitError.message}</Alert> : ''}
 
                                 <div className="h-15">
@@ -271,108 +257,12 @@ function CheckoutPage(){
                         </Box>
                     </Paper>
 
-                    {/* <Paper elevation={3} sx={{ p: 3, borderRadius: 3, width: '100%', height: 'fit-content', marginBottom: 10}}>
-                        <Stack spacing={2}>
-                            <h3 className="font-bold">Order Summary</h3>
-                            <div className="">
-                                <h4>Shipping Information:</h4>
-                                <address>No 19, CMD Road, Kosofe, Lagos, Nigeria</address>
-                                
-                            </div>
-                            <div className="">
-                                <h4>Delivery Information:</h4>
-                                <p>Distance: <span>{shippingDistance || 0}</span> KM</p>
-                                <p>Cost per KM: {formatToCurrency(vendor.cost_per_km || 0)}</p>
-                                <p>Delivery Date : 06/04/2026</p>
-                            </div>
-
-                            <TableContainer component={Paper}>
-                                <Table sx={{ minWidth: 700 }} aria-label="spanning table">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell align="center" colSpan={4}>
-                                                Products
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>Name</TableCell>
-                                            <TableCell align="right">Qty.</TableCell>
-                                            <TableCell align="right">Unit Price</TableCell>
-                                            <TableCell align="right">Total</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {products.map((product) => (
-                                            <TableRow key={product.id}>
-                                                <TableCell>
-                                                    <div className="flex gap-3">
-                                                        <img className="h-5" src={product.image} alt="" />
-                                                        {product.name}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell align="right">{product.quantity}</TableCell>
-                                                <TableCell align="right">{formatToCurrency(product.price)}</TableCell>
-                                                <TableCell align="right">{formatToCurrency(product.price * product.quantity)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                        <TableRow>
-                                            <TableCell rowSpan={5} />
-                                            <TableCell colSpan={2}>Subtotal</TableCell>
-                                            <TableCell align="right">{formatToCurrency(subtotal())}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>Discount</TableCell>
-                                            <TableCell align="right">{(
-                                                discount().discount_type === 'percent' ? 
-                                                `${discount().discount_value}%` : 
-                                                formatToCurrency(discount().discount_value))}</TableCell>
-                                            <TableCell align="right">{formatToCurrency(discount().discount_value)}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>vat</TableCell>
-                                            <TableCell align="right">{'7.5%'}</TableCell>
-                                            <TableCell align="right">{formatToCurrency(calculate_vat())}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell colSpan={2}>Delivery</TableCell>
-                                            <TableCell align="right">{formatToCurrency((shippingDistance * vendor.cost_per_km) || 0)}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell colSpan={2}>Total</TableCell>
-                                            <TableCell align="right">{formatToCurrency(total())}</TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-
-                            <Box sx={{ m: 1, position: 'relative' }} >
-                                    <div className="h-15">
-                                        <PrimaryBtn text='Create Order' action={handleSubmit} disabled={isloading} />
-                                    </div>
-
-                                    {isloading && (
-                                        <CircularProgress
-                                            size={24}
-                                            sx={{
-                                            color: 'inherit',
-                                            position: 'absolute',
-                                            top: '50%',
-                                            left: '50%',
-                                            marginTop: '-12px',
-                                            marginLeft: '-12px',
-                                            }}
-                                        />
-                                    )}
-
-                                </Box>
-                        </Stack>
-                    </Paper> */}
-
                     <OrderPreviewModal 
                         orderData={orderData}
                         openModal={openModal}
                         setOpenModal={setOpenModal}
                         vendor={vendor}
+                        setError={setSubmitError}
                     />
 
 

@@ -26,11 +26,13 @@ export function PrimaryBtn({ text, action, disabled=false }) {
     )
 }
 
-export function SecondaryBtn({ text, action }) {
+export function SecondaryBtn({ text, action, StartIcon=null }) {
+
     return (
         <Button 
             variant="outlined"
             onClick={action}
+            startIcon={StartIcon? <StartIcon sx={{borderColor: 'var(--primary-color)'}} /> : null}
             sx={{
                 borderColor: 'var(--primary-color)',
                 color: 'var(--primary-color)',
@@ -48,10 +50,18 @@ export function SecondaryBtn({ text, action }) {
 
 export function LoginProfileBtn({ isLoggedIn, showName }) {
     const user = useSelector((state) => state.user.user)
+    const navigate = useNavigate()
+
+    const handleClick = () => {
+        if (!isLoggedIn) {
+            navigate('/auth/login')
+        }
+    }
     return (
         <Stack 
             direction="row" 
-            spacing={2} 
+            spacing={2}
+            onClick={handleClick}
             sx={{
                 cursor: 'pointer',
                 alignItems: 'center',
