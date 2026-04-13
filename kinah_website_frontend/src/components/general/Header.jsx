@@ -29,7 +29,7 @@ function Header() {
                         <SearchBox />
                     </div>
                     <div className="sm:w-52.5 w-5 flex align-middle justify-end">
-                        <Stack direction="row" spacing={3} alignItems='center' onClick={()=> console.log('It has it')}>
+                        <Stack direction="row" spacing={3} alignItems='center'>
                             <div className='hidden sm:flex'>
                                 <LoginProfileBtn isLoggedIn={user.isLoggedIn} />
                                 <CartIconBtn />

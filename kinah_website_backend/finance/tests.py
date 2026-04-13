@@ -226,7 +226,7 @@ class EcommerceAPITestCase(APITestCase):
         )
         url = reverse('order-list')
         response = self.client.get(url)
-        
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('data', response.data)
 

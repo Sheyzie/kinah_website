@@ -7,12 +7,14 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router";
 
-export function PrimaryBtn({ text, action, disabled=false }) {
+export function PrimaryBtn({ text, action, disabled=false, StartIcon=null, EndIcon=null }) {
     return (
         <Button 
             variant="contained"
             onClick={action}
             disabled={disabled}
+            startIcon={StartIcon? <StartIcon sx={{backgroundColor: 'var(--primary-color)'}} /> : null}
+            endIcon={EndIcon? <EndIcon sx={{backgroundColor: 'var(--primary-color)'}} /> : null}
             sx={{
                 backgroundColor: 'var(--primary-color)',
                 '&:hover': {
@@ -26,13 +28,15 @@ export function PrimaryBtn({ text, action, disabled=false }) {
     )
 }
 
-export function SecondaryBtn({ text, action, StartIcon=null }) {
+export function SecondaryBtn({ text, action, disabled=false, StartIcon=null, EndIcon=null }) {
 
     return (
         <Button 
             variant="outlined"
             onClick={action}
+            disabled={disabled}
             startIcon={StartIcon? <StartIcon sx={{borderColor: 'var(--primary-color)'}} /> : null}
+            endIcon={EndIcon? <EndIcon sx={{borderColor: 'var(--primary-color)'}} /> : null}
             sx={{
                 borderColor: 'var(--primary-color)',
                 color: 'var(--primary-color)',
@@ -54,8 +58,10 @@ export function LoginProfileBtn({ isLoggedIn, showName }) {
 
     const handleClick = () => {
         if (!isLoggedIn) {
-            navigate('/auth/login')
+            return navigate('/auth/login')
         }
+
+        return navigate('/me')
     }
     return (
         <Stack 
